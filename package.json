@@ -1,0 +1,23 @@
+{
+  "name": "lpos-client",
+  "version": "1.0.0",
+  "description": "JavaScript Client for LPoS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Leasehold/lpos-client-js.git"
+  },
+  "keywords": [
+    "lpos",
+    "client"
+  ],
+  "author": "Jonathan Gros-Dubois",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Leasehold/lpos-client-js/issues"
+  },
+  "homepage": "https://github.com/Leasehold/lpos-client-js#readme"
+}
