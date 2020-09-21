@@ -19,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/Leasehold/lpos-client-js/issues"
   },
-  "homepage": "https://github.com/Leasehold/lpos-client-js#readme"
+  "homepage": "https://github.com/Leasehold/lpos-client-js#readme",
+  "dependencies": {
+    "bip39": "^3.0.2",
+    "proper-merkle": "^1.1.0"
+  }
 }
