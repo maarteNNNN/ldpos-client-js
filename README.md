@@ -1,2 +1,2 @@
-# lpos-client-js
-LPoS JavaScript client
+# ldpos-client-js
+LDPoS JavaScript client
