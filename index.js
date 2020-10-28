@@ -49,11 +49,19 @@ class LDPoSClient {
     return this.accountAddress;
   }
 
-  signTransaction(transaction) {
+  signTransactionsJSON(transactionList) {
 
   }
 
-  signMultisigTransaction(transaction) {
+  signTransactions(transactionList) {
+
+  }
+
+  signMultisigTransactionsJSON(transactionList) {
+
+  }
+
+  signMultisigTransactions(transactionList) {
 
   }
 
@@ -99,13 +107,17 @@ class LDPoSClient {
     }
   }
 
-  signBlock(block) {
-    let blockJSON = JSON.stringify(block);
+  signBlockJSON(blockJSON) {
     let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
 
     this.incrementForgingKey();
 
     return signature;
+  }
+
+  signBlock(block) {
+    let blockJSON = JSON.stringify(block);
+    return this.signBlockJSON(blockJSON);
   }
 
   signMessage(message) {
