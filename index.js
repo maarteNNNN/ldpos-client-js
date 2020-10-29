@@ -66,7 +66,9 @@ class LDPoSClient {
   }
 
   makeForgingTree(treeIndex) {
-    this.forgingTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-forging`, treeIndex);
+    let seedName = `${this.networkSeed}-forging`;
+    this.forgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
+    this.nextForgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
   }
 
   incrementForgingKey() {
@@ -80,7 +82,9 @@ class LDPoSClient {
   }
 
   makeSigTree(treeIndex) {
-    this.sigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-sig`, treeIndex);
+    let seedName = `${this.networkSeed}-sig`;
+    this.sigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
+    this.nextSigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
   }
 
   incrementSigKey() {
@@ -94,7 +98,9 @@ class LDPoSClient {
   }
 
   makeMultisigTree(treeIndex) {
-    this.multisigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-multisig`, treeIndex);
+    let seedName = `${this.networkSeed}-multisig`;
+    this.multisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
+    this.nextMultisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
   }
 
   incrementMultisigKey() {
@@ -108,19 +114,26 @@ class LDPoSClient {
   }
 
   signBlock(block) {
-    let blockJSON = JSON.stringify(block);
+    let extendedBlock = {
+      ...block,
+      nextForgingPublicKey: this.nextForgingTree.publicRootHash
+    };
+    let blockJSON = JSON.stringify(extendedBlock);
     let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
 
     this.incrementForgingKey();
 
     return {
-      ...block,
+      ...extendedBlock,
       signature
     };
   }
 
-  verifyBlock(block, forgingPublicKey) {
+  verifyBlock(block, forgingPublicKey, previousBlockId) {
     if (!block) {
+      return false;
+    }
+    if (block.previousBlockId !== previousBlockId) {
       return false;
     }
     let {signature, ...blockWithoutSignature} = block;
