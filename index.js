@@ -116,6 +116,7 @@ class LDPoSClient {
   signBlock(block) {
     let extendedBlock = {
       ...block,
+      forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
     };
     let blockJSON = JSON.stringify(extendedBlock);
