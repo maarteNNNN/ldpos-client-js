@@ -113,7 +113,7 @@ class LDPoSClient {
     }
   }
 
-  signBlock(block) {
+  prepareBlock(block) {
     let extendedBlock = {
       ...block,
       forgingPublicKey: this.forgingTree.publicRootHash,
@@ -128,6 +128,21 @@ class LDPoSClient {
       ...extendedBlock,
       signature
     };
+  }
+
+  signBlock(preparedBlock) {
+    let blockJSON = JSON.stringify(preparedBlock);
+    let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
+
+    this.incrementForgingKey();
+
+    return signature;
+  }
+
+  verifyBlockSignature(preparedBlock, signature, forgingPublicKey) {
+    let {signatures, ...blockWithoutSignatures} = preparedBlock;
+    let blockJSON = JSON.stringify(blockWithoutSignatures);
+    return this.merkle.verify(blockJSON, signature, forgingPublicKey);
   }
 
   verifyBlock(block, forgingPublicKey, previousBlockId) {
