@@ -20,18 +20,14 @@ class LDPoSClient {
   }
 
   async connect() {
-    let [networkSymbol, keyIndexes] = await Promise.all([
-      this.adapter.getNetworkSymbol(),
-      this.adapter.getAccountKeyIndexes(this.accountAddress),
-    ]);
-
-    this.networkSymbol = networkSymbol;
+    this.networkSymbol = await this.adapter.getNetworkSymbol();
 
     this.networkSeed = `${this.networkSymbol}-${this.seed}`;
     this.firstSigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-sig`, 0);
 
     let { publicRootHash } = this.firstSigTree;
     this.accountAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    let keyIndexes = await this.adapter.getAccountKeyIndexes(this.accountAddress);
 
     this.forgingKeyIndex = keyIndexes.forgingKeyIndex;
     this.multisigKeyIndex = keyIndexes.multisigKeyIndex;
@@ -116,6 +112,7 @@ class LDPoSClient {
   prepareBlock(block) {
     let extendedBlock = {
       ...block,
+      forgerAddress: this.accountAddress,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
     };
