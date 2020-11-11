@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const bip39 = require('bip39');
 const ProperMerkle = require('proper-merkle');
 
@@ -36,6 +35,10 @@ class LDPoSClient {
     this.makeForgingTree(Math.floor(this.forgingKeyIndex / LEAF_COUNT));
     this.makeMultisigTree(Math.floor(this.multisigKeyIndex / LEAF_COUNT));
     this.makeSigTree(Math.floor(this.sigKeyIndex / LEAF_COUNT));
+  }
+
+  sha256(message) {
+    return this.merkle.lamport.hash(message);
   }
 
   getAccountAddress() {
@@ -116,8 +119,12 @@ class LDPoSClient {
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
     };
-    let blockJSON = JSON.stringify(extendedBlock);
-    let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
+
+    let extendedBlockJSON = JSON.stringify(extendedBlock);
+    extendedBlock.id = this.sha256(extendedBlockJSON);
+
+    let extendedBlockWithIdJSON = JSON.stringify(extendedBlock);
+    let signature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, this.forgingKeyIndex);
 
     this.incrementForgingKey();
 
@@ -128,7 +135,8 @@ class LDPoSClient {
   }
 
   signBlock(preparedBlock) {
-    let blockJSON = JSON.stringify(preparedBlock);
+    let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
+    let blockJSON = JSON.stringify(blockWithoutSignatures);
     let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
 
     this.incrementForgingKey();
@@ -136,22 +144,34 @@ class LDPoSClient {
     return signature;
   }
 
-  verifyBlockSignature(preparedBlock, signature, forgingPublicKey) {
-    let {signatures, ...blockWithoutSignatures} = preparedBlock;
+  verifyBlockSignature(preparedBlock, blockSignature, forgingPublicKey) {
+    let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
     let blockJSON = JSON.stringify(blockWithoutSignatures);
-    return this.merkle.verify(blockJSON, signature, forgingPublicKey);
+    return this.merkle.verify(blockJSON, blockSignature, forgingPublicKey);
+  }
+
+  verifyBlockId(block) {
+    let { id, signature, signatures, ...blockWithoutIdAndSignatures } = block;
+    let blockJSON = JSON.stringify(blockWithoutIdAndSignatures);
+    let expectedId = this.sha256(blockJSON);
+    return id === expectedId;
+  }
+
+  verifyPreviousBlockId(block, previousBlockId) {
+    return block.previousBlockId === previousBlockId;
   }
 
   verifyBlock(block, forgingPublicKey, previousBlockId) {
     if (!block) {
       return false;
     }
-    if (block.previousBlockId !== previousBlockId) {
+    if (!this.verifyBlockId(block)) {
       return false;
     }
-    let {signature, ...blockWithoutSignature} = block;
-    let blockJSON = JSON.stringify(blockWithoutSignature);
-    return this.merkle.verify(blockJSON, signature, forgingPublicKey);
+    if (!this.verifyPreviousBlockId(block, previousBlockId)) {
+      return false;
+    }
+    return this.verifyBlockSignature(block, block.signature, forgingPublicKey);
   }
 
   signMessage(message) {
