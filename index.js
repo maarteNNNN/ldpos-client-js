@@ -48,19 +48,16 @@ class LDPoSClient {
     return this.accountAddress;
   }
 
-  signTransactions(transactions) {
+  signTransactionBundle(transactionBundle) {
+    
+  }
+
+  verifyTransactionBundle(transactionBundle, sigPublicKey) {
 
   }
 
-  verifyTransactions(transactions, sigPublicKey) {
 
-  }
-
-  signMultisigTransactionsJSON(transactions) {
-
-  }
-
-  signMultisigTransactions(transactions) {
+  signMultisigTransactionBundle(transactionBundle) {
 
   }
 
