@@ -49,15 +49,18 @@ class LDPoSClient {
   }
 
   signTransactionBundle(transactionBundle) {
-    
+
   }
 
   verifyTransactionBundle(transactionBundle, sigPublicKey) {
 
   }
 
-
   signMultisigTransactionBundle(transactionBundle) {
+
+  }
+
+  verifyMultisigTransactionBundle(transactionBundle, multisigPublicKeys) {
 
   }
 
