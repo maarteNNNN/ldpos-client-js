@@ -14,8 +14,10 @@ class LDPoSClient {
     this.merkle = new ProperMerkle({
       leafCount: LEAF_COUNT
     });
-    this.passphrase = options.passphrase;
-    this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
+    if (options.passphrase) {
+      this.passphrase = options.passphrase;
+      this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
+    }
   }
 
   async connect() {
@@ -52,6 +54,10 @@ class LDPoSClient {
 
   }
 
+  prepareTransaction(transaction) {
+
+  }
+
   verifyTransaction(transaction, sigPublicKey) {
 
   }
@@ -60,7 +66,7 @@ class LDPoSClient {
 
   }
 
-  verifyMultisigTransaction(transaction, multisigPublicKeys) {
+  verifyMultisigTransactionSignature(transaction, multisigPublicKey, signature) {
 
   }
 
