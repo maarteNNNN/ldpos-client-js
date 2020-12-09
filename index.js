@@ -185,12 +185,12 @@ class LDPoSClient {
   }
 }
 
-async function createLDPoSClient(options) {
+async function createClient(options) {
   let ldposClient = new LDPoSClient(options);
   await ldposClient.connect();
 }
 
 module.exports = {
   LDPoSClient,
-  createLDPoSClient
+  createClient
 };
