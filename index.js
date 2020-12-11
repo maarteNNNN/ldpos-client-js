@@ -28,11 +28,11 @@ class LDPoSClient {
 
     let { publicRootHash } = this.firstSigTree;
     this.accountAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
-    let keyIndexes = await this.adapter.getAccountKeyIndexes(this.accountAddress);
+    let account = await this.adapter.getAccount(this.accountAddress);
 
-    this.forgingKeyIndex = keyIndexes.forgingKeyIndex;
-    this.multisigKeyIndex = keyIndexes.multisigKeyIndex;
-    this.sigKeyIndex = keyIndexes.sigKeyIndex;
+    this.forgingKeyIndex = account.forgingKeyIndex;
+    this.multisigKeyIndex = account.multisigKeyIndex;
+    this.sigKeyIndex = account.sigKeyIndex;
 
     this.makeForgingTree(Math.floor(this.forgingKeyIndex / LEAF_COUNT));
     this.makeMultisigTree(Math.floor(this.multisigKeyIndex / LEAF_COUNT));
