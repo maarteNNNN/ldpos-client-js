@@ -2,6 +2,9 @@ const bip39 = require('bip39');
 const ProperMerkle = require('proper-merkle');
 
 const LEAF_COUNT = 32;
+const DEFAULT_FORGING_KEY_INDEX_OFFSET = 2;
+const DEFAULT_MULTISIG_KEY_INDEX_OFFSET = 10;
+const DEFAULT_SIG_KEY_INDEX_OFFSET = 10;
 
 class LDPoSClient {
   constructor(options) {
@@ -18,6 +21,36 @@ class LDPoSClient {
       this.passphrase = options.passphrase;
       this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
     }
+    if (options.forgingKeyIndexOffset == null) {
+      this.forgingKeyIndexOffset = DEFAULT_FORGING_KEY_INDEX_OFFSET;
+    } else {
+      this.forgingKeyIndexOffset = options.forgingKeyIndexOffset;
+    }
+    if (this.forgingKeyIndexOffset >= LEAF_COUNT) {
+      throw new Error(
+        `The forgingKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+      );
+    }
+    if (options.multisigKeyIndexOffset == null) {
+      this.multisigKeyIndexOffset = DEFAULT_MULTISIG_KEY_INDEX_OFFSET;
+    } else {
+      this.multisigKeyIndexOffset = options.multisigKeyIndexOffset;
+    }
+    if (this.multisigKeyIndexOffset >= LEAF_COUNT) {
+      throw new Error(
+        `The multisigKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+      );
+    }
+    if (options.sigKeyIndexOffset == null) {
+      this.sigKeyIndexOffset = DEFAULT_SIG_KEY_INDEX_OFFSET;
+    } else {
+      this.sigKeyIndexOffset = options.sigKeyIndexOffset;
+    }
+    if (this.sigKeyIndexOffset >= LEAF_COUNT) {
+      throw new Error(
+        `The sigKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+      );
+    }
   }
 
   async connect() {
@@ -30,9 +63,9 @@ class LDPoSClient {
     this.accountAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
     let account = await this.adapter.getAccount(this.accountAddress);
 
-    this.forgingKeyIndex = account.forgingKeyIndex;
-    this.multisigKeyIndex = account.multisigKeyIndex;
-    this.sigKeyIndex = account.sigKeyIndex;
+    this.forgingKeyIndex = account.forgingKeyIndex + this.forgingKeyIndexOffset;
+    this.multisigKeyIndex = account.multisigKeyIndex + this.multisigKeyIndexOffset;
+    this.sigKeyIndex = account.sigKeyIndex + this.sigKeyIndexOffset;
 
     this.makeForgingTree(Math.floor(this.forgingKeyIndex / LEAF_COUNT));
     this.makeMultisigTree(Math.floor(this.multisigKeyIndex / LEAF_COUNT));
