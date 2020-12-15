@@ -83,12 +83,26 @@ class LDPoSClient {
     return this.accountAddress;
   }
 
-  signTransaction(transaction) {
-
-  }
-
   prepareTransaction(transaction) {
+    let extendedTransaction = {
+      ...transaction,
+      senderAddress: this.accountAddress,
+      sigPublicKey: this.sigTree.publicRootHash,
+      nextSigPublicKey: this.nextSigTree.publicRootHash
+    };
 
+    let extendedTransactionJSON = JSON.stringify(extendedTransaction);
+    extendedTransaction.id = this.sha256(extendedTransactionJSON);
+
+    let extendedTransactionWithIdJSON = JSON.stringify(extendedTransaction);
+    let signature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, this.sigKeyIndex);
+
+    this.incrementSigKey();
+
+    return {
+      ...extendedTransaction,
+      signature
+    };
   }
 
   verifyTransactionId(transaction) {
@@ -102,8 +116,38 @@ class LDPoSClient {
     // TODO 222: Verify the transaction id as well
   }
 
-  signMultisigTransaction(transaction) {
+  prepareMultisigTransaction(transaction) {
+    let extendedTransaction = {
+      ...transaction,
+      senderAddress: this.accountAddress
+    };
 
+    let extendedTransactionJSON = JSON.stringify(extendedTransaction);
+    extendedTransaction.id = this.sha256(extendedTransactionJSON);
+
+    return extendedTransaction;
+  }
+
+  signMultisigTransaction(preparedTransaction, includeTransactionId) {
+    let { signature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
+    let transactionJSON = JSON.stringify(transactionWithoutSignatures);
+    let signature = this.merkle.sign(transactionJSON, this.multisigTree, this.multisigKeyIndex);
+
+    this.incrementMultisigKey();
+
+    let signaturePacket = {
+      signerAddress: this.accountAddress,
+      multisigPublicKey: this.multisigTree.publicRootHash,
+      nextMultisigPublicKey: this.nextMultisigTree.publicRootHash,
+      signature
+    };
+    if (includeTransactionId) {
+      return {
+        ...signaturePacket,
+        transactionId: preparedTransaction.id
+      };
+    }
+    return signaturePacket;
   }
 
   verifyMultisigTransactionSignature(transaction, multisigPublicKey, signature) {
@@ -180,14 +224,28 @@ class LDPoSClient {
     };
   }
 
-  signBlock(preparedBlock) {
+  signBlock(preparedBlock, includeBlockId) {
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
     let blockJSON = JSON.stringify(blockWithoutSignatures);
     let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
 
     this.incrementForgingKey();
 
-    return signature;
+    let signaturePacket = {
+      signerAddress: this.accountAddress,
+      forgingPublicKey: this.forgingTree.publicRootHash,
+      nextForgingPublicKey: this.nextForgingTree.publicRootHash,
+      signature
+    };
+
+    if (includeBlockId) {
+      return {
+        ...signaturePacket,
+        blockId: preparedBlock.id
+      };
+    }
+
+    return signaturePacket;
   }
 
   verifyBlockSignature(preparedBlock, blockSignature, forgingPublicKey) {
