@@ -91,8 +91,15 @@ class LDPoSClient {
 
   }
 
-  verifyTransaction(transaction, sigPublicKey) {
+  verifyTransactionId(transaction) {
+    let { id, signature, signatures, ...transactionWithoutIdAndSignatures } = transaction;
+    let transactionJSON = JSON.stringify(transactionWithoutIdAndSignatures);
+    let expectedId = this.sha256(transactionJSON);
+    return id === expectedId;
+  }
 
+  verifyTransaction(transaction, sigPublicKey) {
+    // TODO 222: Verify the transaction id as well
   }
 
   signMultisigTransaction(transaction) {
