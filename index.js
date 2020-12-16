@@ -112,8 +112,13 @@ class LDPoSClient {
     return id === expectedId;
   }
 
-  verifyTransaction(transaction, sigPublicKey) {
-    // TODO 222: Verify the transaction id as well
+  verifyTransaction(transaction) {
+    if (!this.verifyTransactionId(transaction)) {
+      return false;
+    }
+    let { signature, signatures, ...transactionWithoutSignatures } = transaction;
+    let transactionJSON = JSON.stringify(transactionWithoutSignatures);
+    return this.merkle.verify(transactionJSON, signature, transaction.sigPublicKey);
   }
 
   prepareMultisigTransaction(transaction) {
@@ -150,8 +155,13 @@ class LDPoSClient {
     return signaturePacket;
   }
 
-  verifyMultisigTransactionSignature(transaction, multisigPublicKey, signature) {
-
+  verifyMultisigTransactionSignature(transaction, signaturePacket) {
+    if (!transaction) {
+      return false;
+    }
+    let { signature, signatures, ...transactionWithoutSignatures } = transaction;
+    let transactionJSON = JSON.stringify(transactionWithoutSignatures);
+    return this.merkle.verify(transactionJSON, signaturePacket.signature, signaturePacket.multisigPublicKey);
   }
 
   makeForgingTree(treeIndex) {
@@ -248,10 +258,10 @@ class LDPoSClient {
     return signaturePacket;
   }
 
-  verifyBlockSignature(preparedBlock, blockSignature, forgingPublicKey) {
+  verifyBlockSignature(preparedBlock, signaturePacket) {
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
     let blockJSON = JSON.stringify(blockWithoutSignatures);
-    return this.merkle.verify(blockJSON, blockSignature, forgingPublicKey);
+    return this.merkle.verify(blockJSON, signaturePacket.signature, signaturePacket.forgingPublicKey);
   }
 
   verifyBlockId(block) {
@@ -265,17 +275,14 @@ class LDPoSClient {
     return block.previousBlockId === previousBlockId;
   }
 
-  verifyBlock(block, forgingPublicKey, previousBlockId) {
-    if (!block) {
-      return false;
-    }
+  verifyBlock(block, previousBlockId) {
     if (!this.verifyBlockId(block)) {
       return false;
     }
     if (!this.verifyPreviousBlockId(block, previousBlockId)) {
       return false;
     }
-    return this.verifyBlockSignature(block, block.signature, forgingPublicKey);
+    return this.verifyBlockSignature(block, block.signature, block.forgingPublicKey);
   }
 
   signMessage(message) {
