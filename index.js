@@ -78,7 +78,7 @@ class LDPoSClient {
 
   getAccountAddress() {
     if (!this.accountAddress) {
-      throw new Error('Account address not loaded - Client needs to connect to a node first');
+      throw new Error('Account address not loaded - Client needs to connect first');
     }
     return this.accountAddress;
   }
