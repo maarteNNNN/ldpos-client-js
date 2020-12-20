@@ -26,9 +26,12 @@ class LDPoSClient {
     } else {
       this.forgingKeyIndexOffset = options.forgingKeyIndexOffset;
     }
-    if (this.forgingKeyIndexOffset >= LEAF_COUNT) {
+
+    let maxForgingKeyOffset = Math.floor(LEAF_COUNT / 2);
+
+    if (this.forgingKeyIndexOffset >= maxForgingKeyOffset) {
       throw new Error(
-        `The forgingKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+        `The forgingKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
       );
     }
     if (options.multisigKeyIndexOffset == null) {
@@ -36,9 +39,9 @@ class LDPoSClient {
     } else {
       this.multisigKeyIndexOffset = options.multisigKeyIndexOffset;
     }
-    if (this.multisigKeyIndexOffset >= LEAF_COUNT) {
+    if (this.multisigKeyIndexOffset >= maxForgingKeyOffset) {
       throw new Error(
-        `The multisigKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+        `The multisigKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
       );
     }
     if (options.sigKeyIndexOffset == null) {
@@ -46,9 +49,9 @@ class LDPoSClient {
     } else {
       this.sigKeyIndexOffset = options.sigKeyIndexOffset;
     }
-    if (this.sigKeyIndexOffset >= LEAF_COUNT) {
+    if (this.sigKeyIndexOffset >= maxForgingKeyOffset) {
       throw new Error(
-        `The sigKeyIndexOffset option must be less than the LEAF_COUNT of ${LEAF_COUNT}`
+        `The sigKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
       );
     }
   }
@@ -87,6 +90,7 @@ class LDPoSClient {
     let extendedTransaction = {
       ...transaction,
       senderAddress: this.accountAddress,
+      sigKeyIndex: this.sigKeyIndex,
       sigPublicKey: this.sigTree.publicRootHash,
       nextSigPublicKey: this.nextSigTree.publicRootHash
     };
@@ -142,6 +146,7 @@ class LDPoSClient {
 
     let signaturePacket = {
       signerAddress: this.accountAddress,
+      multisigKeyIndex: this.multisigKeyIndex,
       multisigPublicKey: this.multisigTree.publicRootHash,
       nextMultisigPublicKey: this.nextMultisigTree.publicRootHash,
       signature
@@ -216,6 +221,7 @@ class LDPoSClient {
     let extendedBlock = {
       ...block,
       forgerAddress: this.accountAddress,
+      forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
     };
@@ -243,6 +249,7 @@ class LDPoSClient {
 
     let signaturePacket = {
       signerAddress: this.accountAddress,
+      forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash,
       signature
