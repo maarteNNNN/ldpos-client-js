@@ -144,6 +144,7 @@ class LDPoSClient {
 
     this.incrementMultisigKey();
 
+    // TODO 222: The properties from this packet must be signed too in order to prevent tempering. Especially nextMultisigPublicKey.
     let signaturePacket = {
       signerAddress: this.accountAddress,
       multisigKeyIndex: this.multisigKeyIndex,
@@ -161,9 +162,7 @@ class LDPoSClient {
   }
 
   verifyMultisigTransactionSignature(transaction, signaturePacket) {
-    if (!transaction) {
-      return false;
-    }
+    // TODO 222 Needs to check the signature against the packet properties itself as well as the transaction.
     let { signature, signatures, ...transactionWithoutSignatures } = transaction;
     let transactionJSON = JSON.stringify(transactionWithoutSignatures);
     return this.merkle.verify(transactionJSON, signaturePacket.signature, signaturePacket.multisigPublicKey);
@@ -247,6 +246,7 @@ class LDPoSClient {
 
     this.incrementForgingKey();
 
+    // TODO 222: These properties need to be included in the signature itself in order to guarantee the integrity of nextForgingPublicKey and other properties.
     let signaturePacket = {
       signerAddress: this.accountAddress,
       forgingKeyIndex: this.forgingKeyIndex,
@@ -266,6 +266,7 @@ class LDPoSClient {
   }
 
   verifyBlockSignature(preparedBlock, signaturePacket) {
+    // TODO 222: The signature needs to be verified against the properties of signaturePacket as well as the block.
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
     let blockJSON = JSON.stringify(blockWithoutSignatures);
     return this.merkle.verify(blockJSON, signaturePacket.signature, signaturePacket.forgingPublicKey);
@@ -289,6 +290,7 @@ class LDPoSClient {
     if (!this.verifyPreviousBlockId(block, previousBlockId)) {
       return false;
     }
+    // TODO 222: block.signature is just a string, not a signaturePacket.
     return this.verifyBlockSignature(block, block.signature, block.forgingPublicKey);
   }
 
