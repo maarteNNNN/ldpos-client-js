@@ -137,35 +137,37 @@ class LDPoSClient {
     return extendedTransaction;
   }
 
-  signMultisigTransaction(preparedTransaction, includeTransactionId) {
+  signMultisigTransaction(preparedTransaction) {
     let { signature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
-    let transactionJSON = JSON.stringify(transactionWithoutSignatures);
-    let signature = this.merkle.sign(transactionJSON, this.multisigTree, this.multisigKeyIndex);
 
-    this.incrementMultisigKey();
-
-    // TODO 222: The properties from this packet must be signed too in order to prevent tempering. Especially nextMultisigPublicKey.
-    let signaturePacket = {
+    let metaPacket = {
       signerAddress: this.accountAddress,
       multisigKeyIndex: this.multisigKeyIndex,
       multisigPublicKey: this.multisigTree.publicRootHash,
-      nextMultisigPublicKey: this.nextMultisigTree.publicRootHash,
+      nextMultisigPublicKey: this.nextMultisigTree.publicRootHash
+    };
+
+    let signablePacket = [transactionWithoutSignatures, metaPacket];
+
+    let signablePacketJSON = JSON.stringify(signablePacket);
+    let signature = this.merkle.sign(signablePacketJSON, this.multisigTree, this.multisigKeyIndex);
+
+    this.incrementMultisigKey();
+
+    return {
+      ...metaPacket,
       signature
     };
-    if (includeTransactionId) {
-      return {
-        ...signaturePacket,
-        transactionId: preparedTransaction.id
-      };
-    }
-    return signaturePacket;
   }
 
   verifyMultisigTransactionSignature(transaction, signaturePacket) {
-    // TODO 222 Needs to check the signature against the packet properties itself as well as the transaction.
     let { signature, signatures, ...transactionWithoutSignatures } = transaction;
-    let transactionJSON = JSON.stringify(transactionWithoutSignatures);
-    return this.merkle.verify(transactionJSON, signaturePacket.signature, signaturePacket.multisigPublicKey);
+    let { signature: transactionSignature, ...metaPacket } = signaturePacket;
+
+    let signablePacket = [transactionWithoutSignatures, metaPacket];
+
+    let signablePacketJSON = JSON.stringify(signablePacket);
+    return this.merkle.verify(signablePacketJSON, transactionSignature, metaPacket.multisigPublicKey);
   }
 
   makeForgingTree(treeIndex) {
@@ -239,37 +241,37 @@ class LDPoSClient {
     };
   }
 
-  signBlock(preparedBlock, includeBlockId) {
+  signBlock(preparedBlock) {
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
-    let blockJSON = JSON.stringify(blockWithoutSignatures);
-    let signature = this.merkle.sign(blockJSON, this.forgingTree, this.forgingKeyIndex);
 
-    this.incrementForgingKey();
-
-    // TODO 222: These properties need to be included in the signature itself in order to guarantee the integrity of nextForgingPublicKey and other properties.
-    let signaturePacket = {
+    let metaPacket = {
       signerAddress: this.accountAddress,
       forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
-      nextForgingPublicKey: this.nextForgingTree.publicRootHash,
-      signature
+      nextForgingPublicKey: this.nextForgingTree.publicRootHash
     };
 
-    if (includeBlockId) {
-      return {
-        ...signaturePacket,
-        blockId: preparedBlock.id
-      };
-    }
+    let signablePacket = [blockWithoutSignatures, metaPacket];
 
-    return signaturePacket;
+    let signablePacketJSON = JSON.stringify(signablePacket);
+    let signature = this.merkle.sign(signablePacketJSON, this.forgingTree, this.forgingKeyIndex);
+
+    this.incrementForgingKey();
+
+    return {
+      ...metaPacket,
+      signature
+    };
   }
 
   verifyBlockSignature(preparedBlock, signaturePacket) {
-    // TODO 222: The signature needs to be verified against the properties of signaturePacket as well as the block.
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
-    let blockJSON = JSON.stringify(blockWithoutSignatures);
-    return this.merkle.verify(blockJSON, signaturePacket.signature, signaturePacket.forgingPublicKey);
+    let { signature: blockSignature, ...metaPacket } = signaturePacket;
+
+    let signablePacket = [blockWithoutSignatures, metaPacket];
+
+    let signablePacketJSON = JSON.stringify(signablePacket);
+    return this.merkle.verify(signablePacketJSON, blockSignature, metaPacket.forgingPublicKey);
   }
 
   verifyBlockId(block) {
@@ -290,8 +292,9 @@ class LDPoSClient {
     if (!this.verifyPreviousBlockId(block, previousBlockId)) {
       return false;
     }
-    // TODO 222: block.signature is just a string, not a signaturePacket.
-    return this.verifyBlockSignature(block, block.signature, block.forgingPublicKey);
+    let { signature, signatures, ...blockWithoutSignatures } = block;
+    let blockJSON = JSON.stringify(blockWithoutSignatures);
+    return this.merkle.verify(blockJSON, block.signature, block.forgingPublicKey);
   }
 
   signMessage(message) {
