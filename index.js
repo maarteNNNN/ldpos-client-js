@@ -138,7 +138,10 @@ class LDPoSClient {
   }
 
   signMultisigTransaction(preparedTransaction) {
-    let { signature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
+    let {
+      signature: transactionSignature,
+      signatures, ...transactionWithoutSignatures
+    } = preparedTransaction;
 
     let metaPacket = {
       signerAddress: this.accountAddress,
