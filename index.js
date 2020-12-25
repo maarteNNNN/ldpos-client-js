@@ -281,15 +281,8 @@ class LDPoSClient {
     return id === expectedId;
   }
 
-  verifyPreviousBlockId(block, previousBlockId) {
-    return block.previousBlockId === previousBlockId;
-  }
-
-  verifyBlock(block, previousBlockId) {
+  verifyBlock(block) {
     if (!this.verifyBlockId(block)) {
-      return false;
-    }
-    if (!this.verifyPreviousBlockId(block, previousBlockId)) {
       return false;
     }
     let { signature, signatures, ...blockWithoutSignatures } = block;
