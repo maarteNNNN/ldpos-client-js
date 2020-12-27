@@ -63,8 +63,8 @@ class LDPoSClient {
     this.firstSigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-sig`, 0);
 
     let { publicRootHash } = this.firstSigTree;
-    this.accountAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
-    let account = await this.adapter.getAccount(this.accountAddress);
+    this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    let account = await this.adapter.getAccount(this.walletAddress);
 
     this.forgingKeyIndex = account.forgingKeyIndex + this.forgingKeyIndexOffset;
     this.multisigKeyIndex = account.multisigKeyIndex + this.multisigKeyIndexOffset;
@@ -79,17 +79,17 @@ class LDPoSClient {
     return this.merkle.lamport.hash(message);
   }
 
-  getAccountAddress() {
-    if (!this.accountAddress) {
+  getWalletAddress() {
+    if (!this.walletAddress) {
       throw new Error('Account address not loaded - Client needs to connect first');
     }
-    return this.accountAddress;
+    return this.walletAddress;
   }
 
   prepareTransaction(transaction) {
     let extendedTransaction = {
       ...transaction,
-      senderAddress: this.accountAddress,
+      senderAddress: this.walletAddress,
       sigKeyIndex: this.sigKeyIndex,
       sigPublicKey: this.sigTree.publicRootHash,
       nextSigPublicKey: this.nextSigTree.publicRootHash
@@ -128,7 +128,7 @@ class LDPoSClient {
   prepareMultisigTransaction(transaction) {
     let extendedTransaction = {
       ...transaction,
-      senderAddress: this.accountAddress
+      senderAddress: this.walletAddress
     };
 
     let extendedTransactionJSON = JSON.stringify(extendedTransaction);
@@ -144,7 +144,7 @@ class LDPoSClient {
     } = preparedTransaction;
 
     let metaPacket = {
-      signerAddress: this.accountAddress,
+      signerAddress: this.walletAddress,
       multisigKeyIndex: this.multisigKeyIndex,
       multisigPublicKey: this.multisigTree.publicRootHash,
       nextMultisigPublicKey: this.nextMultisigTree.publicRootHash
@@ -224,7 +224,7 @@ class LDPoSClient {
   prepareBlock(block) {
     let extendedBlock = {
       ...block,
-      forgerAddress: this.accountAddress,
+      forgerAddress: this.walletAddress,
       forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
@@ -248,7 +248,7 @@ class LDPoSClient {
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
 
     let metaPacket = {
-      signerAddress: this.accountAddress,
+      signerAddress: this.walletAddress,
       forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash
