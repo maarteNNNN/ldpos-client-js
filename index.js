@@ -57,14 +57,14 @@ class LDPoSClient {
   }
 
   async connect() {
-    this.networkSymbol = await this.adapter.getNetworkSymbol();
+    this.networkSymbol = await this.getNetworkSymbol();
 
     this.networkSeed = `${this.networkSymbol}-${this.seed}`;
     this.firstSigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-sig`, 0);
 
     let { publicRootHash } = this.firstSigTree;
     this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
-    let account = await this.adapter.getAccount(this.walletAddress);
+    let account = await this.getAccount(this.walletAddress);
 
     this.forgingKeyIndex = account.forgingKeyIndex + this.forgingKeyIndexOffset;
     this.multisigKeyIndex = account.multisigKeyIndex + this.multisigKeyIndexOffset;
@@ -73,6 +73,14 @@ class LDPoSClient {
     this.makeForgingTree(Math.floor(this.forgingKeyIndex / LEAF_COUNT));
     this.makeMultisigTree(Math.floor(this.multisigKeyIndex / LEAF_COUNT));
     this.makeSigTree(Math.floor(this.sigKeyIndex / LEAF_COUNT));
+  }
+
+  async getNetworkSymbol() {
+    return this.adapter.getNetworkSymbol();
+  }
+
+  async getAccount(walletAddress) {
+    return this.adapter.getAccount(walletAddress);
   }
 
   sha256(message) {
