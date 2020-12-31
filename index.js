@@ -75,6 +75,10 @@ class LDPoSClient {
     this.makeSigTree(Math.floor(this.sigKeyIndex / LEAF_COUNT));
   }
 
+  disconnect() {
+
+  }
+
   async getNetworkSymbol() {
     return this.adapter.getNetworkSymbol();
   }
