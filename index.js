@@ -56,6 +56,14 @@ class LDPoSClient {
     }
   }
 
+  computeTreeIndex(keyIndex) {
+    return Math.floor(keyIndex / LEAF_COUNT);
+  }
+
+  computeLeafIndex(keyIndex) {
+    return keyIndex % LEAF_COUNT;
+  }
+
   async connect() {
     this.networkSymbol = await this.getNetworkSymbol();
 
@@ -70,9 +78,9 @@ class LDPoSClient {
     this.multisigKeyIndex = account.multisigKeyIndex + this.multisigKeyIndexOffset;
     this.sigKeyIndex = account.sigKeyIndex + this.sigKeyIndexOffset;
 
-    this.makeForgingTree(Math.floor(this.forgingKeyIndex / LEAF_COUNT));
-    this.makeMultisigTree(Math.floor(this.multisigKeyIndex / LEAF_COUNT));
-    this.makeSigTree(Math.floor(this.sigKeyIndex / LEAF_COUNT));
+    this.makeForgingTree(this.computeTreeIndex(this.forgingKeyIndex));
+    this.makeMultisigTree(this.computeTreeIndex(this.multisigKeyIndex));
+    this.makeSigTree(this.computeTreeIndex(this.sigKeyIndex));
   }
 
   disconnect() {
@@ -111,7 +119,8 @@ class LDPoSClient {
     extendedTransaction.id = this.sha256(extendedTransactionJSON);
 
     let extendedTransactionWithIdJSON = JSON.stringify(extendedTransaction);
-    let signature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, this.sigKeyIndex);
+    let leafIndex = this.computeLeafIndex(this.sigKeyIndex);
+    let signature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, leafIndex);
 
     this.incrementSigKey();
 
@@ -166,7 +175,8 @@ class LDPoSClient {
     let signablePacket = [transactionWithoutSignatures, metaPacket];
 
     let signablePacketJSON = JSON.stringify(signablePacket);
-    let signature = this.merkle.sign(signablePacketJSON, this.multisigTree, this.multisigKeyIndex);
+    let leafIndex = this.computeLeafIndex(this.multisigKeyIndex);
+    let signature = this.merkle.sign(signablePacketJSON, this.multisigTree, leafIndex);
 
     this.incrementMultisigKey();
 
@@ -193,9 +203,9 @@ class LDPoSClient {
   }
 
   incrementForgingKey() {
-    let currentTreeIndex = Math.floor(this.forgingKeyIndex / LEAF_COUNT);
+    let currentTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
     this.forgingKeyIndex++;
-    let newTreeIndex = Math.floor(this.forgingKeyIndex / LEAF_COUNT);
+    let newTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
       this.makeForgingTree(newTreeIndex);
@@ -209,9 +219,9 @@ class LDPoSClient {
   }
 
   incrementSigKey() {
-    let currentTreeIndex = Math.floor(this.sigKeyIndex / LEAF_COUNT);
+    let currentTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
     this.sigKeyIndex++;
-    let newTreeIndex = Math.floor(this.sigKeyIndex / LEAF_COUNT);
+    let newTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
       this.makeSigTree(newTreeIndex);
@@ -225,9 +235,9 @@ class LDPoSClient {
   }
 
   incrementMultisigKey() {
-    let currentTreeIndex = Math.floor(this.multisigKeyIndex / LEAF_COUNT);
+    let currentTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
     this.multisigKeyIndex++;
-    let newTreeIndex = Math.floor(this.multisigKeyIndex / LEAF_COUNT);
+    let newTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
       this.makeMultisigTree(newTreeIndex);
@@ -247,7 +257,8 @@ class LDPoSClient {
     extendedBlock.id = this.sha256(extendedBlockJSON);
 
     let extendedBlockWithIdJSON = JSON.stringify(extendedBlock);
-    let signature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, this.forgingKeyIndex);
+    let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
+    let signature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, leafIndex);
 
     this.incrementForgingKey();
 
@@ -270,7 +281,8 @@ class LDPoSClient {
     let signablePacket = [blockWithoutSignatures, metaPacket];
 
     let signablePacketJSON = JSON.stringify(signablePacket);
-    let signature = this.merkle.sign(signablePacketJSON, this.forgingTree, this.forgingKeyIndex);
+    let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
+    let signature = this.merkle.sign(signablePacketJSON, this.forgingTree, leafIndex);
 
     this.incrementForgingKey();
 
