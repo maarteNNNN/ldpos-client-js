@@ -145,6 +145,7 @@ class LDPoSClient {
 
     let extendedTransactionJSON = JSON.stringify(extendedTransaction);
     extendedTransaction.id = this.sha256(extendedTransactionJSON);
+    extendedTransaction.signatures = [];
 
     return extendedTransaction;
   }
