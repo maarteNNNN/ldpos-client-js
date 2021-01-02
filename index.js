@@ -84,7 +84,9 @@ class LDPoSClient {
   }
 
   disconnect() {
-
+    if (this.adapter.disconnect) {
+      this.adapter.disconnect();
+    }
   }
 
   async getNetworkSymbol() {
@@ -196,8 +198,12 @@ class LDPoSClient {
     return this.merkle.verify(signablePacketJSON, transactionSignature, metaPacket.multisigPublicKey);
   }
 
+  computeSeedName(type) {
+    return `${this.networkSeed}-${type}`;
+  }
+
   makeForgingTree(treeIndex) {
-    let seedName = `${this.networkSeed}-forging`;
+    let seedName = this.computeSeedName('forging');
     this.forgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
     this.nextForgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
   }
@@ -213,7 +219,7 @@ class LDPoSClient {
   }
 
   makeSigTree(treeIndex) {
-    let seedName = `${this.networkSeed}-sig`;
+    let seedName = this.computeSeedName('sig');
     this.sigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
     this.nextSigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
   }
@@ -229,7 +235,7 @@ class LDPoSClient {
   }
 
   makeMultisigTree(treeIndex) {
-    let seedName = `${this.networkSeed}-multisig`;
+    let seedName = this.computeSeedName('multisig');
     this.multisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
     this.nextMultisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
   }
@@ -318,8 +324,17 @@ class LDPoSClient {
     return this.merkle.verify(blockJSON, block.signature, block.forgingPublicKey);
   }
 
-  signMessage(message) {
+  computeTree(type, treeIndex) {
+    let seedName = this.computeSeedName(type);
+    return this.merkle.generateMSSTreeSync(seedName, treeIndex);
+  }
 
+  signMessage(message, tree, leafIndex) {
+    return this.merkle.sign(message, tree, leafIndex);
+  }
+
+  verifyMessage(message, signature, publicRootHash) {
+    return this.merkle.verify(message, signature, publicRootHash);
   }
 }
 
