@@ -74,9 +74,9 @@ class LDPoSClient {
     this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
     let account = await this.getAccount(this.walletAddress);
 
-    this.forgingKeyIndex = account.forgingKeyIndex + this.forgingKeyIndexOffset;
-    this.multisigKeyIndex = account.multisigKeyIndex + this.multisigKeyIndexOffset;
-    this.sigKeyIndex = account.sigKeyIndex + this.sigKeyIndexOffset;
+    this.forgingKeyIndex = account.nextForgingKeyIndex + this.forgingKeyIndexOffset;
+    this.multisigKeyIndex = account.nextMultisigKeyIndex + this.multisigKeyIndexOffset;
+    this.sigKeyIndex = account.nextSigKeyIndex + this.sigKeyIndexOffset;
 
     this.makeForgingTree(this.computeTreeIndex(this.forgingKeyIndex));
     this.makeMultisigTree(this.computeTreeIndex(this.multisigKeyIndex));
@@ -112,9 +112,9 @@ class LDPoSClient {
     let extendedTransaction = {
       ...transaction,
       senderAddress: this.walletAddress,
-      sigKeyIndex: this.sigKeyIndex,
       sigPublicKey: this.sigTree.publicRootHash,
-      nextSigPublicKey: this.nextSigTree.publicRootHash
+      nextSigPublicKey: this.nextSigTree.publicRootHash,
+      nextSigKeyIndex: this.sigKeyIndex + 1
     };
 
     let extendedTransactionJSON = JSON.stringify(extendedTransaction);
@@ -169,9 +169,9 @@ class LDPoSClient {
 
     let metaPacket = {
       signerAddress: this.walletAddress,
-      multisigKeyIndex: this.multisigKeyIndex,
       multisigPublicKey: this.multisigTree.publicRootHash,
-      nextMultisigPublicKey: this.nextMultisigTree.publicRootHash
+      nextMultisigPublicKey: this.nextMultisigTree.publicRootHash,
+      nextMultisigKeyIndex: this.multisigKeyIndex + 1
     };
 
     let signablePacket = [transactionWithoutSignatures, metaPacket];
@@ -254,9 +254,9 @@ class LDPoSClient {
     let extendedBlock = {
       ...block,
       forgerAddress: this.walletAddress,
-      forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
-      nextForgingPublicKey: this.nextForgingTree.publicRootHash
+      nextForgingPublicKey: this.nextForgingTree.publicRootHash,
+      nextForgingKeyIndex: this.forgingKeyIndex + 1
     };
 
     let extendedBlockJSON = JSON.stringify(extendedBlock);
@@ -279,9 +279,9 @@ class LDPoSClient {
 
     let metaPacket = {
       signerAddress: this.walletAddress,
-      forgingKeyIndex: this.forgingKeyIndex,
       forgingPublicKey: this.forgingTree.publicRootHash,
-      nextForgingPublicKey: this.nextForgingTree.publicRootHash
+      nextForgingPublicKey: this.nextForgingTree.publicRootHash,
+      nextForgingKeyIndex: this.forgingKeyIndex + 1
     };
 
     let signablePacket = [blockWithoutSignatures, metaPacket];
