@@ -133,7 +133,7 @@ class LDPoSClient {
   }
 
   verifyTransactionId(transaction) {
-    let { id, signature, signatures, ...transactionWithoutIdAndSignatures } = transaction;
+    let { id, signature, signatureHash, signatures, ...transactionWithoutIdAndSignatures } = transaction;
     let transactionJSON = JSON.stringify(transactionWithoutIdAndSignatures);
     let expectedId = this.sha256(transactionJSON);
     return id === expectedId;
@@ -278,6 +278,7 @@ class LDPoSClient {
     let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
 
     let metaPacket = {
+      blockId: blockWithoutSignatures.id,
       signerAddress: this.walletAddress,
       forgingPublicKey: this.forgingTree.publicRootHash,
       nextForgingPublicKey: this.nextForgingTree.publicRootHash,
