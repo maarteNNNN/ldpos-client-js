@@ -122,18 +122,18 @@ class LDPoSClient {
 
     let extendedTransactionWithIdJSON = JSON.stringify(extendedTransaction);
     let leafIndex = this.computeLeafIndex(this.sigKeyIndex);
-    let signature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, leafIndex);
+    let senderSignature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, leafIndex);
 
     this.incrementSigKey();
 
     return {
       ...extendedTransaction,
-      signature
+      senderSignature
     };
   }
 
   verifyTransactionId(transaction) {
-    let { id, signature, signatureHash, signatures, ...transactionWithoutIdAndSignatures } = transaction;
+    let { id, senderSignature, senderSignatureHash, signatures, ...transactionWithoutIdAndSignatures } = transaction;
     let transactionJSON = JSON.stringify(transactionWithoutIdAndSignatures);
     let expectedId = this.sha256(transactionJSON);
     return id === expectedId;
@@ -143,9 +143,9 @@ class LDPoSClient {
     if (!this.verifyTransactionId(transaction)) {
       return false;
     }
-    let { signature, signatures, ...transactionWithoutSignatures } = transaction;
+    let { senderSignature, signatures, ...transactionWithoutSignatures } = transaction;
     let transactionJSON = JSON.stringify(transactionWithoutSignatures);
-    return this.merkle.verify(transactionJSON, signature, transaction.sigPublicKey);
+    return this.merkle.verify(transactionJSON, senderSignature, transaction.sigPublicKey);
   }
 
   prepareMultisigTransaction(transaction) {
@@ -162,10 +162,7 @@ class LDPoSClient {
   }
 
   signMultisigTransaction(preparedTransaction) {
-    let {
-      signature: transactionSignature,
-      signatures, ...transactionWithoutSignatures
-    } = preparedTransaction;
+    let { senderSignature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
 
     let metaPacket = {
       signerAddress: this.walletAddress,
@@ -189,13 +186,13 @@ class LDPoSClient {
   }
 
   verifyMultisigTransactionSignature(transaction, signaturePacket) {
-    let { signature, signatures, ...transactionWithoutSignatures } = transaction;
-    let { signature: transactionSignature, ...metaPacket } = signaturePacket;
+    let { senderSignature, signatures, ...transactionWithoutSignatures } = transaction;
+    let { signature, ...metaPacket } = signaturePacket;
 
     let signablePacket = [transactionWithoutSignatures, metaPacket];
 
     let signablePacketJSON = JSON.stringify(signablePacket);
-    return this.merkle.verify(signablePacketJSON, transactionSignature, metaPacket.multisigPublicKey);
+    return this.merkle.verify(signablePacketJSON, signature, metaPacket.multisigPublicKey);
   }
 
   computeSeedName(type) {
@@ -264,18 +261,19 @@ class LDPoSClient {
 
     let extendedBlockWithIdJSON = JSON.stringify(extendedBlock);
     let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
-    let signature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, leafIndex);
+    let forgerSignature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, leafIndex);
 
     this.incrementForgingKey();
 
     return {
       ...extendedBlock,
-      signature
+      forgerSignature,
+      signatures: []
     };
   }
 
   signBlock(preparedBlock) {
-    let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
+    let { forgerSignature, signatures, ...blockWithoutSignatures } = preparedBlock;
 
     let metaPacket = {
       blockId: blockWithoutSignatures.id,
@@ -300,17 +298,17 @@ class LDPoSClient {
   }
 
   verifyBlockSignature(preparedBlock, signaturePacket) {
-    let { signature, signatures, ...blockWithoutSignatures } = preparedBlock;
-    let { signature: blockSignature, ...metaPacket } = signaturePacket;
+    let { forgerSignature, signatures, ...blockWithoutSignatures } = preparedBlock;
+    let { signature, ...metaPacket } = signaturePacket;
 
     let signablePacket = [blockWithoutSignatures, metaPacket];
 
     let signablePacketJSON = JSON.stringify(signablePacket);
-    return this.merkle.verify(signablePacketJSON, blockSignature, metaPacket.forgingPublicKey);
+    return this.merkle.verify(signablePacketJSON, signature, metaPacket.forgingPublicKey);
   }
 
   verifyBlockId(block) {
-    let { id, signature, signatures, ...blockWithoutIdAndSignatures } = block;
+    let { id, forgerSignature, signatures, ...blockWithoutIdAndSignatures } = block;
     let blockJSON = JSON.stringify(blockWithoutIdAndSignatures);
     let expectedId = this.sha256(blockJSON);
     return id === expectedId;
@@ -320,9 +318,9 @@ class LDPoSClient {
     if (!this.verifyBlockId(block)) {
       return false;
     }
-    let { signature, signatures, ...blockWithoutSignatures } = block;
+    let { forgerSignature, signatures, ...blockWithoutSignatures } = block;
     let blockJSON = JSON.stringify(blockWithoutSignatures);
-    return this.merkle.verify(blockJSON, block.signature, block.forgingPublicKey);
+    return this.merkle.verify(blockJSON, block.forgerSignature, block.forgingPublicKey);
   }
 
   computeTree(type, treeIndex) {
