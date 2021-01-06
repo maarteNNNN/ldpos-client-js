@@ -4,7 +4,7 @@ const ProperMerkle = require('proper-merkle');
 const LEAF_COUNT = 32;
 const DEFAULT_FORGING_KEY_INDEX_OFFSET = 2;
 const DEFAULT_MULTISIG_KEY_INDEX_OFFSET = 10;
-const DEFAULT_SIG_KEY_INDEX_OFFSET = 10;
+const DEFAULT_SIG_KEY_INDEX_OFFSET = 3;
 
 class LDPoSClient {
   constructor(options) {
@@ -21,17 +21,16 @@ class LDPoSClient {
       this.passphrase = options.passphrase;
       this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
     }
+    let maxKeyOffset = Math.floor(LEAF_COUNT / 2);
+
     if (options.forgingKeyIndexOffset == null) {
       this.forgingKeyIndexOffset = DEFAULT_FORGING_KEY_INDEX_OFFSET;
     } else {
       this.forgingKeyIndexOffset = options.forgingKeyIndexOffset;
     }
-
-    let maxForgingKeyOffset = Math.floor(LEAF_COUNT / 2);
-
-    if (this.forgingKeyIndexOffset >= maxForgingKeyOffset) {
+    if (this.forgingKeyIndexOffset >= maxKeyOffset) {
       throw new Error(
-        `The forgingKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
+        `The forgingKeyIndexOffset option must be less than ${maxKeyOffset}`
       );
     }
     if (options.multisigKeyIndexOffset == null) {
@@ -39,9 +38,9 @@ class LDPoSClient {
     } else {
       this.multisigKeyIndexOffset = options.multisigKeyIndexOffset;
     }
-    if (this.multisigKeyIndexOffset >= maxForgingKeyOffset) {
+    if (this.multisigKeyIndexOffset >= maxKeyOffset) {
       throw new Error(
-        `The multisigKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
+        `The multisigKeyIndexOffset option must be less than ${maxKeyOffset}`
       );
     }
     if (options.sigKeyIndexOffset == null) {
@@ -49,9 +48,9 @@ class LDPoSClient {
     } else {
       this.sigKeyIndexOffset = options.sigKeyIndexOffset;
     }
-    if (this.sigKeyIndexOffset >= maxForgingKeyOffset) {
+    if (this.sigKeyIndexOffset >= maxKeyOffset) {
       throw new Error(
-        `The sigKeyIndexOffset option must be less than ${maxForgingKeyOffset}`
+        `The sigKeyIndexOffset option must be less than ${maxKeyOffset}`
       );
     }
   }
@@ -74,9 +73,9 @@ class LDPoSClient {
     this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
     let account = await this.getAccount(this.walletAddress);
 
-    this.forgingKeyIndex = account.nextForgingKeyIndex + this.forgingKeyIndexOffset;
-    this.multisigKeyIndex = account.nextMultisigKeyIndex + this.multisigKeyIndexOffset;
-    this.sigKeyIndex = account.nextSigKeyIndex + this.sigKeyIndexOffset;
+    this.forgingKeyIndex = (account.nextForgingKeyIndex || 0) + this.forgingKeyIndexOffset;
+    this.multisigKeyIndex = (account.nextMultisigKeyIndex || 0) + this.multisigKeyIndexOffset;
+    this.sigKeyIndex = (account.nextSigKeyIndex || 0) + this.sigKeyIndexOffset;
 
     this.makeForgingTree(this.computeTreeIndex(this.forgingKeyIndex));
     this.makeMultisigTree(this.computeTreeIndex(this.multisigKeyIndex));
@@ -185,6 +184,11 @@ class LDPoSClient {
     };
   }
 
+  attachMultisigTransactionSignature(preparedTransaction, signaturePacket) {
+    preparedTransaction.signatures.push(signaturePacket);
+    return preparedTransaction;
+  }
+
   verifyMultisigTransactionSignature(transaction, signaturePacket) {
     let { senderSignature, signatures, ...transactionWithoutSignatures } = transaction;
     let { signature, ...metaPacket } = signaturePacket;
@@ -218,7 +222,7 @@ class LDPoSClient {
   makeSigTree(treeIndex) {
     let seedName = this.computeSeedName('sig');
     this.sigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
-    this.nextSigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
+    this.nextSigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
   }
 
   incrementSigKey() {
