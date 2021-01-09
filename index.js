@@ -143,8 +143,8 @@ class LDPoSClient {
   }
 
   stringifyObjectWithMetadata(object, metadata) {
-    let objectString = JSON.stringify(object, Object.keys(object).sort());
-    let metadataString = JSON.stringify(metadata, Object.keys(metadata).sort());
+    let objectString = this.stringifyObject(object);
+    let metadataString = this.stringifyObject(metadata);
     return `[${objectString},${metadataString}]`;
   }
 
