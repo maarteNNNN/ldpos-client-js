@@ -201,9 +201,7 @@ class LDPoSClient {
     let { senderSignature, signatures, ...transactionWithoutSignatures } = transaction;
     let { signature, ...metaPacket } = signaturePacket;
 
-    let signablePacket = [transactionWithoutSignatures, metaPacket];
-
-    let signablePacketJSON = this.stringifyObject(signablePacket);
+    let signablePacketJSON = this.stringifyObjectWithMetadata(transactionWithoutSignatures, metaPacket);
     return this.merkle.verify(signablePacketJSON, signature, metaPacket.multisigPublicKey);
   }
 
