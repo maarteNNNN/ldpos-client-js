@@ -66,11 +66,12 @@ class LDPoSClient {
   async connect() {
     this.networkSymbol = await this.getNetworkSymbol();
 
-    this.networkSeed = `${this.networkSymbol}-${this.seed}`;
-    this.firstSigTree = this.merkle.generateMSSTreeSync(`${this.networkSeed}-sig`, 0);
+    let treeName = this.computeTreeName('sig', 0);
+    this.firstSigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
 
     let { publicRootHash } = this.firstSigTree;
     this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+
     let account = await this.getAccount(this.walletAddress);
 
     this.forgingKeyIndex = (account.nextForgingKeyIndex || 0) + this.forgingKeyIndexOffset;
@@ -247,14 +248,15 @@ class LDPoSClient {
     return this.nextSigTree.publicRootHash;
   }
 
-  computeSeedName(type) {
-    return `${this.networkSeed}-${type}`;
+  computeTreeName(type, index) {
+    return `${this.networkSymbol}-${type}-${index}`;
   }
 
   makeForgingTree(treeIndex) {
-    let seedName = this.computeSeedName('forging');
-    this.forgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
-    this.nextForgingTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
+    let treeName = this.computeTreeName('forging', treeIndex);
+    this.forgingTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    let nextTreeName = this.computeTreeName('forging', treeIndex + 1);
+    this.nextForgingTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
   }
 
   incrementForgingKey() {
@@ -268,9 +270,10 @@ class LDPoSClient {
   }
 
   makeSigTree(treeIndex) {
-    let seedName = this.computeSeedName('sig');
-    this.sigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
-    this.nextSigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
+    let treeName = this.computeTreeName('sig', treeIndex);
+    this.sigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    let nextTreeName = this.computeTreeName('sig', treeIndex + 1);
+    this.nextSigTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
   }
 
   incrementSigKey() {
@@ -284,9 +287,10 @@ class LDPoSClient {
   }
 
   makeMultisigTree(treeIndex) {
-    let seedName = this.computeSeedName('multisig');
-    this.multisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex);
-    this.nextMultisigTree = this.merkle.generateMSSTreeSync(seedName, treeIndex + 1);
+    let treeName = this.computeTreeName('multisig', treeIndex);
+    this.multisigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    let nextTreeName = this.computeTreeName('multisig', treeIndex + 1);
+    this.nextMultisigTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
   }
 
   incrementMultisigKey() {
@@ -372,8 +376,8 @@ class LDPoSClient {
   }
 
   computeTree(type, treeIndex) {
-    let seedName = this.computeSeedName(type);
-    return this.merkle.generateMSSTreeSync(seedName, treeIndex);
+    let treeName = this.computeTreeName(type, treeIndex);
+    return this.merkle.generateMSSTreeSync(this.seed, treeName);
   }
 
   signMessage(message, tree, leafIndex) {
