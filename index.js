@@ -108,6 +108,10 @@ class LDPoSClient {
     return this.walletAddress;
   }
 
+  async postTransaction(preparedTransaction) {
+    return this.adapter.postTransaction(preparedTransaction);
+  }
+
   prepareTransaction(transaction) {
     let extendedTransaction = {
       ...transaction,
@@ -139,8 +143,25 @@ class LDPoSClient {
     return id === expectedId;
   }
 
+  getAllObjectKeys(object) {
+    let keyList = [];
+    if (typeof object !== 'object') {
+      return keyList;
+    }
+    for (let key in object) {
+      keyList.push(key);
+      let item = object[key];
+      let itemKeyList = this.getAllObjectKeys(item);
+      for (let itemKey of itemKeyList) {
+        keyList.push(itemKey);
+      }
+    }
+    return keyList;
+  }
+
   stringifyObject(object) {
-    return JSON.stringify(object, Object.keys(object).sort());
+    let keyList = this.getAllObjectKeys(object);
+    return JSON.stringify(object, keyList.sort());
   }
 
   stringifyObjectWithMetadata(object, metadata) {
