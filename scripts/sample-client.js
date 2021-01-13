@@ -1,5 +1,6 @@
 const { createClient } = require('../index');
 const querystring = require('querystring');
+const blockchainNodeIp = process.argv[2];
 
 (async () => {
 
@@ -7,7 +8,7 @@ const querystring = require('querystring');
   let client = await createClient({
     passphrase: 'clerk aware give dog reopen peasant duty cheese tobacco trouble gold angle',
     adapterOptions: {
-      hostname: '34.227.22.98',
+      hostname: blockchainNodeIp,
       port: 7001,
       query: querystring.stringify({
         ipAddress: '127.0.0.1',
