@@ -64,6 +64,9 @@ class LDPoSClient {
   }
 
   async connect() {
+    if (!this.seed) {
+      throw new Error('Cannot connect client without a passphrase');
+    }
     this.networkSymbol = await this.getNetworkSymbol();
 
     let treeName = this.computeTreeName('sig', 0);
@@ -103,7 +106,9 @@ class LDPoSClient {
 
   getWalletAddress() {
     if (!this.walletAddress) {
-      throw new Error('Account address not loaded - Client needs to connect first');
+      throw new Error(
+        'Client must be connected with a passphrase in order to get the wallet address'
+      );
     }
     return this.walletAddress;
   }
@@ -113,6 +118,9 @@ class LDPoSClient {
   }
 
   prepareTransaction(transaction) {
+    if (!this.sigTree) {
+      throw new Error('Client must be connected with a passphrase in order to prepare a transaction');
+    }
     let extendedTransaction = {
       ...transaction,
       senderAddress: transaction.senderAddress == null ? this.walletAddress : transaction.senderAddress,
@@ -180,6 +188,9 @@ class LDPoSClient {
   }
 
   prepareMultisigTransaction(transaction) {
+    if (!this.walletAddress) {
+      throw new Error('Client must be connected with a passphrase in order to prepare a multisig transaction');
+    }
     let extendedTransaction = {
       ...transaction,
       senderAddress: transaction.senderAddress == null ? this.walletAddress : transaction.senderAddress
@@ -193,6 +204,9 @@ class LDPoSClient {
   }
 
   signMultisigTransaction(preparedTransaction) {
+    if (!this.multisigTree) {
+      throw new Error('Client must be connected with a passphrase in order to sign a multisig transaction');
+    }
     let { senderSignature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
 
     let metaPacket = {
@@ -325,6 +339,9 @@ class LDPoSClient {
   }
 
   prepareBlock(block) {
+    if (!this.forgingTree) {
+      throw new Error('Client must be connected with a passphrase in order to prepare a block');
+    }
     let extendedBlock = {
       ...block,
       forgerAddress: this.walletAddress,
@@ -350,6 +367,9 @@ class LDPoSClient {
   }
 
   signBlock(preparedBlock) {
+    if (!this.forgingTree) {
+      throw new Error('Client must be connected with a passphrase in order to sign a block');
+    }
     let { forgerSignature, signatures, ...blockWithoutSignatures } = preparedBlock;
 
     let metaPacket = {
@@ -397,6 +417,9 @@ class LDPoSClient {
   }
 
   computeTree(type, treeIndex) {
+    if (!this.seed) {
+      throw new Error('Client must be instantiated with a passphrase in order to compute an MSS tree');
+    }
     let treeName = this.computeTreeName(type, treeIndex);
     return this.merkle.generateMSSTreeSync(this.seed, treeName);
   }
@@ -411,8 +434,11 @@ class LDPoSClient {
 }
 
 async function createClient(options) {
-  let ldposClient = new LDPoSClient(options);
-  await ldposClient.connect();
+  let { connect, ...clientOptions } = options;
+  let ldposClient = new LDPoSClient(clientOptions);
+  if (connect === undefined || connect) {
+    await ldposClient.connect();
+  }
   return ldposClient;
 }
 
