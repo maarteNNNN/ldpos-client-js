@@ -1,5 +1,6 @@
 const bip39 = require('bip39');
 const ProperMerkle = require('proper-merkle');
+const SCAdapter = require('./sc-adapter');
 
 const LEAF_COUNT = 32;
 const DEFAULT_FORGING_KEY_INDEX_OFFSET = 2;
@@ -12,7 +13,12 @@ class LDPoSClient {
     if (options.adapter) {
       this.adapter = options.adapter;
     } else {
-      // TODO 222: Instantiate SocketCluster client and use it as the default adapter
+      if (!options.adapterOptions) {
+        throw new Error(
+          `Either an adapter instance or an adapterOptions object must be specified`
+        );
+      }
+      this.adapter = new SCAdapter(options.adapterOptions);
     }
     this.merkle = new ProperMerkle({
       leafCount: LEAF_COUNT
@@ -66,6 +72,9 @@ class LDPoSClient {
   async connect() {
     if (!this.seed) {
       throw new Error('Cannot connect client without a passphrase');
+    }
+    if (this.adapter.connect) {
+      await this.adapter.connect();
     }
     this.networkSymbol = await this.getNetworkSymbol();
 
