@@ -160,20 +160,31 @@ class LDPoSClient {
     return id === expectedId;
   }
 
-  getAllObjectKeys(object) {
-    let keyList = [];
+  getAllObjectKeySet(object, seenRefSet) {
+    if (!seenRefSet) {
+      seenRefSet = new Set();
+    }
+    let keySet = new Set();
+    if (seenRefSet.has(object)) {
+      return keySet;
+    }
+    seenRefSet.add(object);
     if (typeof object !== 'object') {
-      return keyList;
+      return keySet;
     }
     for (let key in object) {
-      keyList.push(key);
+      keySet.add(key);
       let item = object[key];
-      let itemKeyList = this.getAllObjectKeys(item);
+      let itemKeyList = this.getAllObjectKeySet(item, seenRefSet);
       for (let itemKey of itemKeyList) {
-        keyList.push(itemKey);
+        keySet.add(itemKey);
       }
     }
-    return keyList;
+    return keySet;
+  }
+
+  getAllObjectKeys(object) {
+    return [...this.getAllObjectKeySet(object)];
   }
 
   stringifyObject(object) {
