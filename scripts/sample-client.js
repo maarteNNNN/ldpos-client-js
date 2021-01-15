@@ -67,4 +67,13 @@ const blockchainNodePort = process.argv[3] || 7001;
   let multisigTxnSignature = client.signMultisigTransaction(preparedMultisigTxn);
   console.log('Multisig transaction signature:', multisigTxnSignature);
 
+  console.log();
+  console.log('--------------');
+  console.log('--------------');
+  console.log('--------------');
+  console.log();
+
+  let accountList = await client.getAccountsByBalance(0, 10, 'desc');
+  console.log('Account list:', accountList);
+
 })();

@@ -101,14 +101,6 @@ class LDPoSClient {
     }
   }
 
-  async getNetworkSymbol() {
-    return this.adapter.getNetworkSymbol();
-  }
-
-  async getAccount(walletAddress) {
-    return this.adapter.getAccount(walletAddress);
-  }
-
   sha256(message) {
     return this.merkle.lamport.hash(message);
   }
@@ -120,10 +112,6 @@ class LDPoSClient {
       );
     }
     return this.walletAddress;
-  }
-
-  async postTransaction(preparedTransaction) {
-    return this.adapter.postTransaction(preparedTransaction);
   }
 
   prepareTransaction(transaction) {
@@ -450,6 +438,119 @@ class LDPoSClient {
 
   verifyMessage(message, signature, publicRootHash) {
     return this.merkle.verify(message, signature, publicRootHash);
+  }
+
+  async getNetworkSymbol() {
+    this.verifyAdapterSupportsMethod('getNetworkSymbol');
+    return this.adapter.getNetworkSymbol();
+  }
+
+  async getAccount(walletAddress) {
+    this.verifyAdapterSupportsMethod('getAccount');
+    return this.adapter.getAccount(walletAddress);
+  }
+
+  async getAccountsByBalance(offset, limit, order) {
+    this.verifyAdapterSupportsMethod('getAccountsByBalance');
+    return this.adapter.getAccountsByBalance(offset, limit, order);
+  }
+
+  async getMultisigWalletMembers(walletAddress) {
+    this.verifyAdapterSupportsMethod('getMultisigWalletMembers');
+    return this.adapter.getMultisigWalletMembers(walletAddress);
+  }
+
+  async postTransaction(preparedTransaction) {
+    this.verifyAdapterSupportsMethod('postTransaction');
+    return this.adapter.postTransaction(preparedTransaction);
+  }
+
+  async getTransaction(transactionId) {
+    this.verifyAdapterSupportsMethod('getTransaction');
+    return this.adapter.getTransaction(transactionId);
+  }
+
+  async getTransactionsByTimestamp(offset, limit, order) {
+    this.verifyAdapterSupportsMethod('getTransactionsByTimestamp');
+    return this.adapter.getTransactionsByTimestamp(offset, limit, order);
+  }
+
+  async getOutboundTransactions(walletAddress, fromTimestamp, limit) {
+    this.verifyAdapterSupportsMethod('getOutboundTransactions');
+    return this.adapter.getOutboundTransactions(walletAddress, fromTimestamp, limit);
+  }
+
+  async getTransactionsFromBlock(blockId, offset, limit) {
+    this.verifyAdapterSupportsMethod('getTransactionsFromBlock');
+    return this.adapter.getTransactionsFromBlock(blockId, offset, limit);
+  }
+
+  async getInboundTransactionsFromBlock(walletAddress, blockId) {
+    this.verifyAdapterSupportsMethod('getInboundTransactionsFromBlock');
+    return this.adapter.getInboundTransactionsFromBlock(walletAddress, blockId);
+  }
+
+  async getOutboundTransactionsFromBlock(walletAddress, blockId) {
+    this.verifyAdapterSupportsMethod('getOutboundTransactionsFromBlock');
+    return this.adapter.getOutboundTransactionsFromBlock(walletAddress, blockId);
+  }
+
+  async getLastBlockAtTimestamp(timestamp) {
+    this.verifyAdapterSupportsMethod('getLastBlockAtTimestamp');
+    return this.adapter.getLastBlockAtTimestamp(timestamp);
+  }
+
+  async getMaxBlockHeight() {
+    this.verifyAdapterSupportsMethod('getMaxBlockHeight');
+    return this.adapter.getMaxBlockHeight();
+  }
+
+  async getBlocksFromHeight(height, limit) {
+    this.verifyAdapterSupportsMethod('getBlocksFromHeight');
+    return this.adapter.getBlocksFromHeight(height, limit);
+  }
+
+  async getSignedBlocksFromHeight(height, limit) {
+    this.verifyAdapterSupportsMethod('getSignedBlocksFromHeight');
+    return this.adapter.getSignedBlocksFromHeight(height, limit);
+  }
+
+  async getBlocksBetweenHeights(fromHeight, toHeight, limit) {
+    this.verifyAdapterSupportsMethod('getBlocksBetweenHeights');
+    return this.adapter.getBlocksBetweenHeights(fromHeight, toHeight, limit);
+  }
+
+  async getBlockAtHeight(height) {
+    this.verifyAdapterSupportsMethod('getBlockAtHeight');
+    return this.adapter.getBlockAtHeight(height);
+  }
+
+  async getBlock(blockId) {
+    this.verifyAdapterSupportsMethod('getBlock');
+    return this.adapter.getBlock(blockId);
+  }
+
+  async getBlocksByTimestamp(offset, limit, order) {
+    this.verifyAdapterSupportsMethod('getBlocksByTimestamp');
+    return this.adapter.getBlocksByTimestamp(offset, limit, order);
+  }
+
+  async getDelegatesByVoteWeight(offset, limit, order) {
+    this.verifyAdapterSupportsMethod('getDelegatesByVoteWeight');
+    return this.adapter.getDelegatesByVoteWeight(offset, limit, order);
+  }
+
+  async getForgingDelegates() {
+    this.verifyAdapterSupportsMethod('getForgingDelegates');
+    return this.adapter.getForgingDelegates();
+  }
+
+  verifyAdapterSupportsMethod(methodName) {
+    if (!this.adapter[methodName]) {
+      throw new Error(
+        `Client adapter does not support the ${methodName} method`
+      );
+    }
   }
 }
 
