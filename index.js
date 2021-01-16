@@ -27,6 +27,9 @@ class LDPoSClient {
       this.passphrase = options.passphrase;
       this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
     }
+    if (options.walletAddress) {
+      this.walletAddress = options.walletAddress;
+    }
     let maxKeyOffset = Math.floor(LEAF_COUNT / 2);
 
     if (options.forgingKeyIndexOffset == null) {
@@ -82,7 +85,9 @@ class LDPoSClient {
     this.firstSigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
 
     let { publicRootHash } = this.firstSigTree;
-    this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    if (!this.walletAddress) {
+      this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    }
 
     let account = await this.getAccount(this.walletAddress);
 
@@ -120,7 +125,7 @@ class LDPoSClient {
     }
     let extendedTransaction = {
       ...transaction,
-      senderAddress: transaction.senderAddress == null ? this.walletAddress : transaction.senderAddress,
+      senderAddress: this.walletAddress,
       sigPublicKey: this.sigTree.publicRootHash,
       nextSigPublicKey: this.nextSigTree.publicRootHash,
       nextSigKeyIndex: this.sigKeyIndex + 1
@@ -201,7 +206,7 @@ class LDPoSClient {
     }
     let extendedTransaction = {
       ...transaction,
-      senderAddress: transaction.senderAddress == null ? this.walletAddress : transaction.senderAddress
+      senderAddress: this.walletAddress
     };
 
     let extendedTransactionJSON = this.stringifyObject(extendedTransaction);
