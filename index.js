@@ -480,9 +480,14 @@ class LDPoSClient {
     return this.adapter.getTransactionsByTimestamp(offset, limit, order);
   }
 
-  async getOutboundTransactions(walletAddress, fromTimestamp, limit) {
+  async getInboundTransactions(walletAddress, fromTimestamp, limit, order) {
+    this.verifyAdapterSupportsMethod('getInboundTransactions');
+    return this.adapter.getInboundTransactions(walletAddress, fromTimestamp, limit, order);
+  }
+
+  async getOutboundTransactions(walletAddress, fromTimestamp, limit, order) {
     this.verifyAdapterSupportsMethod('getOutboundTransactions');
-    return this.adapter.getOutboundTransactions(walletAddress, fromTimestamp, limit);
+    return this.adapter.getOutboundTransactions(walletAddress, fromTimestamp, limit, order);
   }
 
   async getTransactionsFromBlock(blockId, offset, limit) {
