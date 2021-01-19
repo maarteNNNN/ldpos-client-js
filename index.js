@@ -465,6 +465,21 @@ class LDPoSClient {
     return this.adapter.getMultisigWalletMembers(walletAddress);
   }
 
+  async getSignedPendingTransaction(transactionId) {
+    this.verifyAdapterSupportsMethod('getSignedPendingTransaction');
+    return this.adapter.getSignedPendingTransaction(transactionId);
+  }
+
+  async getOutboundPendingTransactions(walletAddress, offset, limit) {
+    this.verifyAdapterSupportsMethod('getOutboundPendingTransactions');
+    return this.adapter.getOutboundPendingTransactions(walletAddress, offset, limit);
+  }
+
+  async getPendingTransactionCount() {
+    this.verifyAdapterSupportsMethod('getPendingTransactionCount');
+    return this.adapter.getPendingTransactionCount();
+  }
+
   async postTransaction(preparedTransaction) {
     this.verifyAdapterSupportsMethod('postTransaction');
     return this.adapter.postTransaction(preparedTransaction);

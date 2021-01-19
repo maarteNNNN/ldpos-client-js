@@ -59,6 +59,18 @@ class SCAdapter {
     return this.invokeProcedure('getMultisigWalletMembers', { walletAddress });
   }
 
+  async getSignedPendingTransaction(transactionId) {
+    return this.invokeProcedure('getSignedPendingTransaction', { transactionId });
+  }
+
+  async getOutboundPendingTransactions(walletAddress, offset, limit) {
+    return this.invokeProcedure('getOutboundPendingTransactions', { walletAddress, offset, limit });
+  }
+
+  async getPendingTransactionCount() {
+    return this.invokeProcedure('getPendingTransactionCount');
+  }
+
   async postTransaction(transaction) {
     return this.invokeProcedure('postTransaction', { transaction });
   }
