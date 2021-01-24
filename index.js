@@ -7,6 +7,8 @@ const DEFAULT_FORGING_KEY_INDEX_OFFSET = 2;
 const DEFAULT_MULTISIG_KEY_INDEX_OFFSET = 10;
 const DEFAULT_SIG_KEY_INDEX_OFFSET = 3;
 
+// TODO: Add methods for proving or disproving a signed transaction based on signatureHash.
+
 class LDPoSClient {
   constructor(options) {
     this.options = options || {};
@@ -568,6 +570,11 @@ class LDPoSClient {
   async getForgingDelegates() {
     this.verifyAdapterSupportsMethod('getForgingDelegates');
     return this.adapter.getForgingDelegates();
+  }
+
+  async getAccountVotes(walletAddress) {
+    this.verifyAdapterSupportsMethod('getAccountVotes');
+    return this.adapter.getAccountVotes(walletAddress);
   }
 
   verifyAdapterSupportsMethod(methodName) {

@@ -142,6 +142,10 @@ class SCAdapter {
   async getForgingDelegates() {
     return this.invokeProcedure('getForgingDelegates');
   }
+
+  async getAccountVotes(walletAddress) {
+    return this.invokeProcedure('getAccountVotes', { walletAddress });
+  }
 }
 
 module.exports = SCAdapter;
