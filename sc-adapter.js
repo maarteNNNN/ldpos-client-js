@@ -1,12 +1,21 @@
 const RPC_REQUEST_PROCEDURE = 'rpc-request';
 const socketClusterClient = require('socketcluster-client');
+const querystring = require('querystring');
 
 class SCAdapter {
   constructor(options) {
     this.socket = socketClusterClient.create({
-      protocolVersion: 1,
+      hostname: options.hostname,
+      port: options.port,
       path: '/socketcluster/',
-      ...options,
+      protocolVersion: 1,
+      query: querystring.stringify({
+        ipAddress: '127.0.0.1',
+        wsPort: options.port,
+        protocolVersion: options.protocolVersion || '1.1',
+        nethash: options.nethash,
+        version: options.clientVersion || '2.0.0'
+      }),
       autoConnect: false
     });
     this.chainModuleName = options.chainModuleName || 'ldpos_chain';

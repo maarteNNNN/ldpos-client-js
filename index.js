@@ -15,23 +15,21 @@ class LDPoSClient {
     if (options.adapter) {
       this.adapter = options.adapter;
     } else {
-      if (!options.adapterOptions) {
+      if (
+        options.hostname == null ||
+        options.port == null ||
+        options.nethash == null
+      ) {
         throw new Error(
-          `Either an adapter instance or an adapterOptions object must be specified`
+          `If a custom adapter is not specified, then a hostname, port and nethash must be specified`
         );
       }
-      this.adapter = new SCAdapter(options.adapterOptions);
+      this.adapter = new SCAdapter(options);
     }
     this.merkle = new ProperMerkle({
       leafCount: LEAF_COUNT
     });
-    if (options.passphrase) {
-      this.passphrase = options.passphrase;
-      this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
-    }
-    if (options.walletAddress) {
-      this.walletAddress = options.walletAddress;
-    }
+
     let maxKeyOffset = Math.floor(LEAF_COUNT / 2);
 
     if (options.forgingKeyIndexOffset == null) {
@@ -74,21 +72,27 @@ class LDPoSClient {
     return keyIndex % LEAF_COUNT;
   }
 
-  async connect() {
-    if (!this.seed) {
+  async connect(options) {
+    options = options || {};
+
+    if (options.passphrase) {
+      this.passphrase = options.passphrase;
+      this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
+    } else {
       throw new Error('Cannot connect client without a passphrase');
     }
+
     if (this.adapter.connect) {
       await this.adapter.connect();
     }
     this.networkSymbol = await this.getNetworkSymbol();
 
-    let treeName = this.computeTreeName('sig', 0);
-    this.firstSigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
-
-    let { publicRootHash } = this.firstSigTree;
-    if (!this.walletAddress) {
+    if (options.walletAddress == null) {
+      let treeName = this.computeTreeName('sig', 0);
+      let { publicRootHash } = this.merkle.generateMSSTreeSync(this.seed, treeName);
       this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    } else {
+      this.walletAddress = options.walletAddress;
     }
 
     let account = await this.getAccount(this.walletAddress);
@@ -106,6 +110,22 @@ class LDPoSClient {
     if (this.adapter.disconnect) {
       this.adapter.disconnect();
     }
+  }
+
+  generateWallet() {
+    let passphrase = bip39.generateMnemonic();
+    let seed = bip39.mnemonicToSeedSync(passphrase).toString('hex');
+    let sigTreeName = this.computeTreeName('sig', 0);
+    let sigTree = this.merkle.generateMSSTreeSync(seed, sigTreeName);
+    let walletAddress = `${Buffer.from(sigTree.publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    return {
+      address: walletAddress,
+      passphrase
+    };
+  }
+
+  validatePassphrase(passphrase) {
+    return bip39.validateMnemonic(passphrase);
   }
 
   sha256(message) {
@@ -586,13 +606,8 @@ class LDPoSClient {
   }
 }
 
-async function createClient(options) {
-  let { connect, ...clientOptions } = options;
-  let ldposClient = new LDPoSClient(clientOptions);
-  if (connect === undefined || connect) {
-    await ldposClient.connect();
-  }
-  return ldposClient;
+function createClient(options) {
+  return new LDPoSClient(options);
 }
 
 module.exports = {
