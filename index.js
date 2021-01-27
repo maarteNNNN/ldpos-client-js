@@ -81,6 +81,20 @@ class LDPoSClient {
     } else {
       throw new Error('Cannot connect client without a passphrase');
     }
+    if (options.multisigPassphrase == null) {
+      this.multisigPassphrase = this.passphrase;
+      this.multisigSeed = this.seed;
+    } else {
+      this.multisigPassphrase = options.multisigPassphrase;
+      this.multisigSeed = bip39.mnemonicToSeedSync(this.multisigPassphrase).toString('hex');
+    }
+    if (options.forgingPassphrase == null) {
+      this.forgingPassphrase = this.passphrase;
+      this.forgingSeed = this.seed;
+    } else {
+      this.forgingPassphrase = options.forgingPassphrase;
+      this.forgingSeed = bip39.mnemonicToSeedSync(this.forgingPassphrase).toString('hex');
+    }
 
     if (this.adapter.connect) {
       await this.adapter.connect();
@@ -324,9 +338,9 @@ class LDPoSClient {
 
   makeForgingTree(treeIndex) {
     let treeName = this.computeTreeName('forging', treeIndex);
-    this.forgingTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    this.forgingTree = this.merkle.generateMSSTreeSync(this.forgingSeed, treeName);
     let nextTreeName = this.computeTreeName('forging', treeIndex + 1);
-    this.nextForgingTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
+    this.nextForgingTree = this.merkle.generateMSSTreeSync(this.forgingSeed, nextTreeName);
   }
 
   incrementForgingKey() {
@@ -358,9 +372,9 @@ class LDPoSClient {
 
   makeMultisigTree(treeIndex) {
     let treeName = this.computeTreeName('multisig', treeIndex);
-    this.multisigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    this.multisigTree = this.merkle.generateMSSTreeSync(this.multisigSeed, treeName);
     let nextTreeName = this.computeTreeName('multisig', treeIndex + 1);
-    this.nextMultisigTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
+    this.nextMultisigTree = this.merkle.generateMSSTreeSync(this.multisigSeed, nextTreeName);
   }
 
   incrementMultisigKey() {
@@ -452,11 +466,27 @@ class LDPoSClient {
   }
 
   computeTree(type, treeIndex) {
-    if (!this.seed) {
-      throw new Error('Client must be instantiated with a passphrase in order to compute an MSS tree');
+    let seed;
+    if (type === 'sig') {
+      seed = this.seed;
+    } else if (type === 'multisig') {
+      seed = this.multisigSeed;
+    } else if (type === 'forging') {
+      seed = this.forgingSeed;
+    } else {
+      throw new Error(
+        `Tree type ${type} is invalid - It must be either sig, multisig or forging`
+      );
+    }
+    if (!seed) {
+      throw new Error(
+        `Client must be instantiated with a ${
+          type
+        } passphrase in order to compute an MSS tree of that type`
+      );
     }
     let treeName = this.computeTreeName(type, treeIndex);
-    return this.merkle.generateMSSTreeSync(this.seed, treeName);
+    return this.merkle.generateMSSTreeSync(seed, treeName);
   }
 
   signMessage(message, tree, leafIndex) {
