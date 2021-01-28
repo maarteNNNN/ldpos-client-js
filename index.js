@@ -104,7 +104,7 @@ class LDPoSClient {
     if (options.walletAddress == null) {
       let treeName = this.computeTreeName('sig', 0);
       let { publicRootHash } = this.merkle.generateMSSTreeSync(this.seed, treeName);
-      this.walletAddress = `${Buffer.from(publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+      this.walletAddress = `${publicRootHash}${this.networkSymbol}`;
     } else {
       this.walletAddress = options.walletAddress;
     }
@@ -131,7 +131,7 @@ class LDPoSClient {
     let seed = this.computeSeedFromPassphrase(passphrase);
     let sigTreeName = this.computeTreeName('sig', 0);
     let sigTree = this.merkle.generateMSSTreeSync(seed, sigTreeName);
-    let walletAddress = `${Buffer.from(sigTree.publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
+    let walletAddress = `${sigTree.publicRootHash}${this.networkSymbol}`;
     return {
       address: walletAddress,
       passphrase
@@ -538,7 +538,7 @@ class LDPoSClient {
   }
 
   computeSeedFromPassphrase(passphrase) {
-    return bip39.mnemonicToSeedSync(passphrase).toString('hex');
+    return bip39.mnemonicToSeedSync(passphrase).toString('base64');
   }
 
   computeTreeFromSeed(seed, type, treeIndex) {
