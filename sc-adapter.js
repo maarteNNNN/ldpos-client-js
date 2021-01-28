@@ -1,6 +1,7 @@
-const RPC_REQUEST_PROCEDURE = 'rpc-request';
 const socketClusterClient = require('socketcluster-client');
 const querystring = require('querystring');
+
+const RPC_REQUEST_PROCEDURE = 'rpc-request';
 
 class SCAdapter {
   constructor(options) {
@@ -11,7 +12,7 @@ class SCAdapter {
       protocolVersion: 1,
       query: querystring.stringify({
         ipAddress: '127.0.0.1',
-        wsPort: options.port,
+        wsPort: options.inboundPort || 0,
         protocolVersion: options.protocolVersion || '1.1',
         nethash: options.nethash,
         version: options.clientVersion || '2.0.0'
@@ -22,6 +23,9 @@ class SCAdapter {
   }
 
   async connect() {
+    if (this.socket.state === this.socket.OPEN) {
+      return;
+    }
     this.socket.connect();
     let event = await Promise.race([
       this.socket.listener('connect').once(),

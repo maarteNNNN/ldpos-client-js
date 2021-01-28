@@ -77,23 +77,23 @@ class LDPoSClient {
 
     if (options.passphrase) {
       this.passphrase = options.passphrase;
-      this.seed = bip39.mnemonicToSeedSync(this.passphrase).toString('hex');
+      this.seed = this.computeSeedFromPassphrase(this.passphrase);
     } else {
       throw new Error('Cannot connect client without a passphrase');
     }
-    if (options.multisigPassphrase == null) {
+    if (options.multisigPassphrase) {
+      this.multisigPassphrase = options.multisigPassphrase;
+      this.multisigSeed = this.computeSeedFromPassphrase(this.multisigPassphrase);
+    } else {
       this.multisigPassphrase = this.passphrase;
       this.multisigSeed = this.seed;
-    } else {
-      this.multisigPassphrase = options.multisigPassphrase;
-      this.multisigSeed = bip39.mnemonicToSeedSync(this.multisigPassphrase).toString('hex');
     }
-    if (options.forgingPassphrase == null) {
+    if (options.forgingPassphrase) {
+      this.forgingPassphrase = options.forgingPassphrase;
+      this.forgingSeed = this.computeSeedFromPassphrase(this.forgingPassphrase);
+    } else {
       this.forgingPassphrase = this.passphrase;
       this.forgingSeed = this.seed;
-    } else {
-      this.forgingPassphrase = options.forgingPassphrase;
-      this.forgingSeed = bip39.mnemonicToSeedSync(this.forgingPassphrase).toString('hex');
     }
 
     if (this.adapter.connect) {
@@ -128,7 +128,7 @@ class LDPoSClient {
 
   generateWallet() {
     let passphrase = bip39.generateMnemonic();
-    let seed = bip39.mnemonicToSeedSync(passphrase).toString('hex');
+    let seed = this.computeSeedFromPassphrase(passphrase);
     let sigTreeName = this.computeTreeName('sig', 0);
     let sigTree = this.merkle.generateMSSTreeSync(seed, sigTreeName);
     let walletAddress = `${Buffer.from(sigTree.publicRootHash, 'base64').toString('hex')}${this.networkSymbol}`;
@@ -180,6 +180,76 @@ class LDPoSClient {
       ...extendedTransaction,
       senderSignature
     };
+  }
+
+  prepareRegisterMultisigWallet(options) {
+    options = options || {};
+    let { memberAddresses, requiredSignatureCount } = options;
+    return this.prepareTransaction({
+      type: 'registerMultisigWallet',
+      fee: options.fee,
+      memberAddresses,
+      requiredSignatureCount,
+      timestamp: options.timestamp == null ? Date.now() : options.timestamp,
+      message: options.message == null ? '' : options.message
+    });
+  }
+
+  prepareRegisterSigDetails(options) {
+    options = options || {};
+    let sigPassphrase = options.passphrase || this.passphrase;
+    let newNextSigKeyIndex = options.newNextSigKeyIndex || 0;
+    let treeIndex = this.computeTreeIndex(newNextSigKeyIndex);
+    let seed = this.computeSeedFromPassphrase(sigPassphrase);
+    let mssTree = this.computeTreeFromSeed(seed, 'sig', treeIndex);
+    let nextMSSTree = this.computeTreeFromSeed(seed, 'sig', treeIndex + 1);
+    return this.prepareTransaction({
+      type: 'registerSigDetails',
+      fee: options.fee,
+      newSigPublicKey: mssTree.publicRootHash,
+      newNextSigPublicKey: nextMSSTree.publicRootHash,
+      newNextSigKeyIndex,
+      timestamp: options.timestamp == null ? Date.now() : options.timestamp,
+      message: options.message == null ? '' : options.message
+    });
+  }
+
+  prepareRegisterMultisigDetails(options) {
+    options = options || {};
+    let multisigPassphrase = options.multisigPassphrase || this.multisigPassphrase;
+    let newNextMultisigKeyIndex = options.newNextMultisigKeyIndex || 0;
+    let treeIndex = this.computeTreeIndex(newNextMultisigKeyIndex);
+    let seed = this.computeSeedFromPassphrase(multisigPassphrase);
+    let mssTree = this.computeTreeFromSeed(seed, 'multisig', treeIndex);
+    let nextMSSTree = this.computeTreeFromSeed(seed, 'multisig', treeIndex + 1);
+    return this.prepareTransaction({
+      type: 'registerMultisigDetails',
+      fee: options.fee,
+      newMultisigPublicKey: mssTree.publicRootHash,
+      newNextMultisigPublicKey: nextMSSTree.publicRootHash,
+      newNextMultisigKeyIndex,
+      timestamp: options.timestamp == null ? Date.now() : options.timestamp,
+      message: options.message == null ? '' : options.message
+    });
+  }
+
+  prepareRegisterForgingDetails(options) {
+    options = options || {};
+    let forgingPassphrase = options.forgingPassphrase || this.forgingPassphrase;
+    let newNextForgingKeyIndex = options.newNextForgingKeyIndex || 0;
+    let treeIndex = this.computeTreeIndex(newNextForgingKeyIndex);
+    let seed = this.computeSeedFromPassphrase(forgingPassphrase);
+    let mssTree = this.computeTreeFromSeed(seed, 'forging', treeIndex);
+    let nextMSSTree = this.computeTreeFromSeed(seed, 'forging', treeIndex + 1);
+    return this.prepareTransaction({
+      type: 'registerForgingDetails',
+      fee: options.fee,
+      newForgingPublicKey: mssTree.publicRootHash,
+      newNextForgingPublicKey: nextMSSTree.publicRootHash,
+      newNextForgingKeyIndex,
+      timestamp: options.timestamp == null ? Date.now() : options.timestamp,
+      message: options.message == null ? '' : options.message
+    });
   }
 
   verifyTransactionId(transaction) {
@@ -465,6 +535,15 @@ class LDPoSClient {
     return this.merkle.verify(blockJSON, block.forgerSignature, block.forgingPublicKey);
   }
 
+  computeSeedFromPassphrase(passphrase) {
+    return bip39.mnemonicToSeedSync(passphrase).toString('hex');
+  }
+
+  computeTreeFromSeed(seed, type, treeIndex) {
+    let treeName = this.computeTreeName(type, treeIndex);
+    return this.merkle.generateMSSTreeSync(seed, treeName);
+  }
+
   computeTree(type, treeIndex) {
     let seed;
     if (type === 'sig') {
@@ -485,8 +564,7 @@ class LDPoSClient {
         } passphrase in order to compute an MSS tree of that type`
       );
     }
-    let treeName = this.computeTreeName(type, treeIndex);
-    return this.merkle.generateMSSTreeSync(seed, treeName);
+    return this.computeTreeFromSeed(seed, type, treeIndex);
   }
 
   signMessage(message, tree, leafIndex) {
