@@ -307,12 +307,14 @@ class LDPoSClient {
   }
 
   prepareMultisigTransaction(transaction) {
-    if (!this.walletAddress) {
-      throw new Error('Client must be connected with a passphrase in order to prepare a multisig transaction');
+    if (!this.walletAddress && !transaction.senderAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to prepare a multisig transaction without a senderAddress'
+      );
     }
     let extendedTransaction = {
       ...transaction,
-      senderAddress: this.walletAddress
+      senderAddress: transaction.senderAddress || this.walletAddress
     };
 
     let extendedTransactionJSON = this.stringifyObject(extendedTransaction);
