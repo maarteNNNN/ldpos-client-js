@@ -23,7 +23,10 @@
   "homepage": "https://github.com/Leasehold/ldpos-client-js#readme",
   "dependencies": {
     "bip39": "^3.0.3",
-    "proper-merkle": "^3.0.1",
+    "proper-merkle": "^3.0.2",
     "socketcluster-client": "^16.0.1"
+  },
+  "browser": {
+    "./store": "./local-storage-store.js"
   }
 }

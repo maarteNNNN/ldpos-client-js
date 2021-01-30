@@ -1,11 +1,9 @@
 const bip39 = require('bip39');
 const ProperMerkle = require('proper-merkle');
 const SCAdapter = require('./sc-adapter');
+const StoreClass = require('./store');
 
 const LEAF_COUNT = 32;
-const DEFAULT_FORGING_KEY_INDEX_OFFSET = 2;
-const DEFAULT_MULTISIG_KEY_INDEX_OFFSET = 10;
-const DEFAULT_SIG_KEY_INDEX_OFFSET = 3;
 
 // TODO: Add methods for proving or disproving a signed transaction based on signatureHash.
 
@@ -29,38 +27,10 @@ class LDPoSClient {
     this.merkle = new ProperMerkle({
       leafCount: LEAF_COUNT
     });
-
-    let maxKeyOffset = Math.floor(LEAF_COUNT / 2);
-
-    if (options.forgingKeyIndexOffset == null) {
-      this.forgingKeyIndexOffset = DEFAULT_FORGING_KEY_INDEX_OFFSET;
+    if (options.store) {
+      this.store = options.store;
     } else {
-      this.forgingKeyIndexOffset = options.forgingKeyIndexOffset;
-    }
-    if (this.forgingKeyIndexOffset >= maxKeyOffset) {
-      throw new Error(
-        `The forgingKeyIndexOffset option must be less than ${maxKeyOffset}`
-      );
-    }
-    if (options.multisigKeyIndexOffset == null) {
-      this.multisigKeyIndexOffset = DEFAULT_MULTISIG_KEY_INDEX_OFFSET;
-    } else {
-      this.multisigKeyIndexOffset = options.multisigKeyIndexOffset;
-    }
-    if (this.multisigKeyIndexOffset >= maxKeyOffset) {
-      throw new Error(
-        `The multisigKeyIndexOffset option must be less than ${maxKeyOffset}`
-      );
-    }
-    if (options.sigKeyIndexOffset == null) {
-      this.sigKeyIndexOffset = DEFAULT_SIG_KEY_INDEX_OFFSET;
-    } else {
-      this.sigKeyIndexOffset = options.sigKeyIndexOffset;
-    }
-    if (this.sigKeyIndexOffset >= maxKeyOffset) {
-      throw new Error(
-        `The sigKeyIndexOffset option must be less than ${maxKeyOffset}`
-      );
+      this.store = new StoreClass(options);
     }
   }
 
@@ -109,11 +79,21 @@ class LDPoSClient {
       this.walletAddress = options.walletAddress;
     }
 
-    let account = await this.getAccount(this.walletAddress);
-
-    this.forgingKeyIndex = (account.nextForgingKeyIndex || 0) + this.forgingKeyIndexOffset;
-    this.multisigKeyIndex = (account.nextMultisigKeyIndex || 0) + this.multisigKeyIndexOffset;
-    this.sigKeyIndex = (account.nextSigKeyIndex || 0) + this.sigKeyIndexOffset;
+    if (options.forgingKeyIndex == null) {
+      this.forgingKeyIndex = await this.loadKeyIndex('forgingKeyIndex');
+    } else {
+      this.forgingKeyIndex = options.forgingKeyIndex;
+    }
+    if (options.multisigKeyIndex == null) {
+      this.multisigKeyIndex = await this.loadKeyIndex('multisigKeyIndex');
+    } else {
+      this.multisigKeyIndex = options.multisigKeyIndex;
+    }
+    if (options.sigKeyIndex == null) {
+      this.sigKeyIndex = await this.loadKeyIndex('sigKeyIndex');
+    } else {
+      this.sigKeyIndex = options.sigKeyIndex;
+    }
 
     this.makeForgingTree(this.computeTreeIndex(this.forgingKeyIndex));
     this.makeMultisigTree(this.computeTreeIndex(this.multisigKeyIndex));
@@ -126,12 +106,27 @@ class LDPoSClient {
     }
   }
 
-  generateWallet() {
+  async loadKeyIndex(type) {
+    return Number((await this.store.loadItem(`${this.walletAddress}-${type}`)) || 0);
+  }
+
+  async saveKeyIndex(type, value) {
+    return this.store.saveItem(`${this.walletAddress}-${type}`, String(value));
+  }
+
+  generateWallet(options) {
+    options = options || {};
+    if (!this.networkSymbol && !options.networkSymbol) {
+      throw new Error(
+        'If a networkSymbol is not specified, the client must be connected to a valid network in order to generate a wallet'
+      );
+    }
+    let networkSymbol = options.networkSymbol == null ? this.networkSymbol : options.networkSymbol;
     let passphrase = bip39.generateMnemonic();
     let seed = this.computeSeedFromPassphrase(passphrase);
     let sigTreeName = this.computeTreeName('sig', 0);
     let sigTree = this.merkle.generateMSSTreeSync(seed, sigTreeName);
-    let walletAddress = `${sigTree.publicRootHash}${this.networkSymbol}`;
+    let walletAddress = `${sigTree.publicRootHash}${networkSymbol}`;
     return {
       address: walletAddress,
       passphrase
@@ -155,7 +150,7 @@ class LDPoSClient {
     return this.walletAddress;
   }
 
-  prepareTransaction(transaction) {
+  async prepareTransaction(transaction) {
     if (!this.sigTree) {
       throw new Error('Client must be connected with a passphrase in order to prepare a transaction');
     }
@@ -174,7 +169,7 @@ class LDPoSClient {
     let leafIndex = this.computeLeafIndex(this.sigKeyIndex);
     let senderSignature = this.merkle.sign(extendedTransactionWithIdJSON, this.sigTree, leafIndex);
 
-    this.incrementSigKey();
+    await this.incrementSigKey();
 
     return {
       ...extendedTransaction,
@@ -324,7 +319,7 @@ class LDPoSClient {
     return extendedTransaction;
   }
 
-  signMultisigTransaction(preparedTransaction) {
+  async signMultisigTransaction(preparedTransaction) {
     if (!this.multisigTree) {
       throw new Error('Client must be connected with a passphrase in order to sign a multisig transaction');
     }
@@ -341,7 +336,7 @@ class LDPoSClient {
     let leafIndex = this.computeLeafIndex(this.multisigKeyIndex);
     let signature = this.merkle.sign(signablePacketJSON, this.multisigTree, leafIndex);
 
-    this.incrementMultisigKey();
+    await this.incrementMultisigKey();
 
     return {
       ...metaPacket,
@@ -362,48 +357,6 @@ class LDPoSClient {
     return this.merkle.verify(signablePacketJSON, signature, metaPacket.multisigPublicKey);
   }
 
-  getForgingPublicKey() {
-    if (!this.forgingTree) {
-      return null;
-    }
-    return this.forgingTree.publicRootHash;
-  }
-
-  getNextForgingPublicKey() {
-    if (!this.nextForgingTree) {
-      return null;
-    }
-    return this.nextForgingTree.publicRootHash;
-  }
-
-  getMultisigPublicKey() {
-    if (!this.multisigTree) {
-      return null;
-    }
-    return this.multisigTree.publicRootHash;
-  }
-
-  getNextMultisigPublicKey() {
-    if (!this.nextMultisigTree) {
-      return null;
-    }
-    return this.nextMultisigTree.publicRootHash;
-  }
-
-  getSigPublicKey() {
-    if (!this.sigTree) {
-      return null;
-    }
-    return this.sigTree.publicRootHash;
-  }
-
-  getNextSigPublicKey() {
-    if (!this.nextSigTree) {
-      return null;
-    }
-    return this.nextSigTree.publicRootHash;
-  }
-
   computeTreeName(type, index) {
     return `${this.networkSymbol}-${type}-${index}`;
   }
@@ -411,13 +364,21 @@ class LDPoSClient {
   makeForgingTree(treeIndex) {
     let treeName = this.computeTreeName('forging', treeIndex);
     this.forgingTree = this.merkle.generateMSSTreeSync(this.forgingSeed, treeName);
+    this.forgingPublicKey = this.forgingTree.publicRootHash;
     let nextTreeName = this.computeTreeName('forging', treeIndex + 1);
     this.nextForgingTree = this.merkle.generateMSSTreeSync(this.forgingSeed, nextTreeName);
+    this.nextForgingPublicKey = this.nextForgingTree.publicRootHash;
   }
 
-  incrementForgingKey() {
+  async incrementForgingKey() {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to increment the forging key'
+      );
+    }
     let currentTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
     this.forgingKeyIndex++;
+    await this.saveKeyIndex('forgingKeyIndex', this.forgingKeyIndex);
     let newTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
@@ -425,33 +386,24 @@ class LDPoSClient {
     }
   }
 
-  makeSigTree(treeIndex) {
-    let treeName = this.computeTreeName('sig', treeIndex);
-    this.sigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
-    let nextTreeName = this.computeTreeName('sig', treeIndex + 1);
-    this.nextSigTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
-  }
-
-  incrementSigKey() {
-    let currentTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
-    this.sigKeyIndex++;
-    let newTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
-
-    if (newTreeIndex !== currentTreeIndex) {
-      this.makeSigTree(newTreeIndex);
-    }
-  }
-
   makeMultisigTree(treeIndex) {
     let treeName = this.computeTreeName('multisig', treeIndex);
     this.multisigTree = this.merkle.generateMSSTreeSync(this.multisigSeed, treeName);
+    this.multisigPublicKey = this.multisigTree.publicRootHash;
     let nextTreeName = this.computeTreeName('multisig', treeIndex + 1);
     this.nextMultisigTree = this.merkle.generateMSSTreeSync(this.multisigSeed, nextTreeName);
+    this.nextMultisigPublicKey = this.nextMultisigTree.publicRootHash;
   }
 
-  incrementMultisigKey() {
+  async incrementMultisigKey() {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to increment the multisig key'
+      );
+    }
     let currentTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
     this.multisigKeyIndex++;
+    await this.saveKeyIndex('multisigKeyIndex', this.multisigKeyIndex);
     let newTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
@@ -459,7 +411,32 @@ class LDPoSClient {
     }
   }
 
-  prepareBlock(block) {
+  makeSigTree(treeIndex) {
+    let treeName = this.computeTreeName('sig', treeIndex);
+    this.sigTree = this.merkle.generateMSSTreeSync(this.seed, treeName);
+    this.sigPublicKey = this.sigTree.publicRootHash;
+    let nextTreeName = this.computeTreeName('sig', treeIndex + 1);
+    this.nextSigTree = this.merkle.generateMSSTreeSync(this.seed, nextTreeName);
+    this.nextSigPublicKey = this.nextSigTree.publicRootHash;
+  }
+
+  async incrementSigKey() {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to increment the sig key'
+      );
+    }
+    let currentTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
+    this.sigKeyIndex++;
+    await this.saveKeyIndex('sigKeyIndex', this.sigKeyIndex);
+    let newTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
+
+    if (newTreeIndex !== currentTreeIndex) {
+      this.makeSigTree(newTreeIndex);
+    }
+  }
+
+  async prepareBlock(block) {
     if (!this.forgingTree) {
       throw new Error('Client must be connected with a passphrase in order to prepare a block');
     }
@@ -478,7 +455,7 @@ class LDPoSClient {
     let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
     let forgerSignature = this.merkle.sign(extendedBlockWithIdJSON, this.forgingTree, leafIndex);
 
-    this.incrementForgingKey();
+    await this.incrementForgingKey();
 
     return {
       ...extendedBlock,
@@ -487,7 +464,7 @@ class LDPoSClient {
     };
   }
 
-  signBlock(preparedBlock) {
+  async signBlock(preparedBlock) {
     if (!this.forgingTree) {
       throw new Error('Client must be connected with a passphrase in order to sign a block');
     }
@@ -505,7 +482,7 @@ class LDPoSClient {
     let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
     let signature = this.merkle.sign(signablePacketJSON, this.forgingTree, leafIndex);
 
-    this.incrementForgingKey();
+    await this.incrementForgingKey();
 
     return {
       ...metaPacket,
