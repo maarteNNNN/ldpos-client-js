@@ -4,6 +4,11 @@ const SCAdapter = require('./sc-adapter');
 const StoreClass = require('./store');
 
 const LEAF_COUNT = 32;
+const SEED_ENCODING = 'hex';
+const NODE_ENCODING = 'hex';
+const SIGNATURE_ENCODING = 'base64';
+const ID_ENCODING = 'hex';
+const ID_LENGTH = 40;
 
 // TODO: Add methods for proving or disproving a signed transaction based on signatureHash.
 
@@ -25,7 +30,10 @@ class LDPoSClient {
       this.adapter = new SCAdapter(options);
     }
     this.merkle = new ProperMerkle({
-      leafCount: LEAF_COUNT
+      leafCount: LEAF_COUNT,
+      seedEncoding: SEED_ENCODING,
+      nodeEncoding: NODE_ENCODING,
+      signatureFormat: SIGNATURE_ENCODING
     });
     if (options.store) {
       this.store = options.store;
@@ -74,7 +82,9 @@ class LDPoSClient {
     if (options.walletAddress == null) {
       let treeName = this.computeTreeName('sig', 0);
       let { publicRootHash } = this.merkle.generateMSSTreeSync(this.seed, treeName);
-      this.walletAddress = `${publicRootHash}${this.networkSymbol}`;
+      this.walletAddress = `${this.networkSymbol}${
+        Buffer.from(publicRootHash, NODE_ENCODING).slice(0, 20).toString('hex')
+      }`;
     } else {
       this.walletAddress = options.walletAddress;
     }
@@ -137,8 +147,13 @@ class LDPoSClient {
     return bip39.validateMnemonic(passphrase);
   }
 
-  sha256(message) {
-    return this.merkle.lamport.hash(message);
+  computeId(object) {
+    let objectJSON = this.stringifyObject(object);
+    return this.sha256(objectJSON, ID_ENCODING).slice(0, ID_LENGTH);
+  }
+
+  sha256(message, encoding) {
+    return this.merkle.lamport.sha256(message, encoding);
   }
 
   getWalletAddress() {
@@ -162,8 +177,7 @@ class LDPoSClient {
       nextSigKeyIndex: this.sigKeyIndex + 1
     };
 
-    let extendedTransactionJSON = this.stringifyObject(extendedTransaction);
-    extendedTransaction.id = this.sha256(extendedTransactionJSON);
+    extendedTransaction.id = this.computeId(extendedTransaction);
 
     let extendedTransactionWithIdJSON = this.stringifyObject(extendedTransaction);
     let leafIndex = this.computeLeafIndex(this.sigKeyIndex);
@@ -249,8 +263,7 @@ class LDPoSClient {
 
   verifyTransactionId(transaction) {
     let { id, senderSignature, senderSignatureHash, signatures, ...transactionWithoutIdAndSignatures } = transaction;
-    let transactionJSON = this.stringifyObject(transactionWithoutIdAndSignatures);
-    let expectedId = this.sha256(transactionJSON);
+    let expectedId = this.computeId(transactionWithoutIdAndSignatures);
     return id === expectedId;
   }
 
@@ -312,8 +325,7 @@ class LDPoSClient {
       senderAddress: transaction.senderAddress || this.walletAddress
     };
 
-    let extendedTransactionJSON = this.stringifyObject(extendedTransaction);
-    extendedTransaction.id = this.sha256(extendedTransactionJSON);
+    extendedTransaction.id = this.computeId(extendedTransaction);
     extendedTransaction.signatures = [];
 
     return extendedTransaction;
@@ -448,8 +460,7 @@ class LDPoSClient {
       nextForgingKeyIndex: this.forgingKeyIndex + 1
     };
 
-    let extendedBlockJSON = this.stringifyObject(extendedBlock);
-    extendedBlock.id = this.sha256(extendedBlockJSON);
+    extendedBlock.id = this.computeId(extendedBlock);
 
     let extendedBlockWithIdJSON = this.stringifyObject(extendedBlock);
     let leafIndex = this.computeLeafIndex(this.forgingKeyIndex);
@@ -500,8 +511,7 @@ class LDPoSClient {
 
   verifyBlockId(block) {
     let { id, forgerSignature, signatures, ...blockWithoutIdAndSignatures } = block;
-    let blockJSON = this.stringifyObject(blockWithoutIdAndSignatures);
-    let expectedId = this.sha256(blockJSON);
+    let expectedId = this.computeId(blockWithoutIdAndSignatures);
     return id === expectedId;
   }
 
@@ -515,7 +525,7 @@ class LDPoSClient {
   }
 
   computeSeedFromPassphrase(passphrase) {
-    return bip39.mnemonicToSeedSync(passphrase).toString('base64');
+    return bip39.mnemonicToSeedSync(passphrase).toString(SEED_ENCODING);
   }
 
   computeTreeFromSeed(seed, type, treeIndex) {
