@@ -12,11 +12,10 @@ class SCAdapter {
       path: '/socketcluster/',
       protocolVersion: options.socketProtocolVersion || 1,
       query: querystring.stringify({
-        ipAddress: '127.0.0.1',
-        wsPort: options.inboundPort || 0,
         protocolVersion: options.peerProtocolVersion || '1.1',
         nethash: options.nethash == null ? DEFAULT_NETHASH : options.nethash,
-        version: options.clientVersion || '2.0.0'
+        version: options.clientVersion || '2.0.0',
+        isPassive: true
       }),
       autoConnect: false
     });
