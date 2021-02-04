@@ -15,19 +15,18 @@ const ID_LENGTH = 40;
 class LDPoSClient {
   constructor(options) {
     this.options = options || {};
-    if (options.adapter) {
-      this.adapter = options.adapter;
+    if (this.options.adapter) {
+      this.adapter = this.options.adapter;
     } else {
       if (
-        options.hostname == null ||
-        options.port == null ||
-        options.nethash == null
+        this.options.hostname == null ||
+        this.options.port == null
       ) {
         throw new Error(
-          `If a custom adapter is not specified, then a hostname, port and nethash must be specified`
+          `If a custom adapter is not specified, then a hostname and port must be specified`
         );
       }
-      this.adapter = new SCAdapter(options);
+      this.adapter = new SCAdapter(this.options);
     }
     this.merkle = new ProperMerkle({
       leafCount: LEAF_COUNT,
@@ -35,10 +34,10 @@ class LDPoSClient {
       nodeEncoding: NODE_ENCODING,
       signatureFormat: SIGNATURE_ENCODING
     });
-    if (options.store) {
-      this.store = options.store;
+    if (this.options.store) {
+      this.store = this.options.store;
     } else {
-      this.store = new StoreClass(options);
+      this.store = new StoreClass(this.options);
     }
   }
 

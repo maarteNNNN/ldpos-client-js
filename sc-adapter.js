@@ -1,6 +1,7 @@
 const socketClusterClient = require('socketcluster-client');
 const querystring = require('querystring');
 
+const DEFAULT_NETHASH = 'da3ed6a45429278bac2666961289ca17ad86595d33b31037615d4b8e8f158bba';
 const RPC_REQUEST_PROCEDURE = 'rpc-request';
 
 class SCAdapter {
@@ -14,7 +15,7 @@ class SCAdapter {
         ipAddress: '127.0.0.1',
         wsPort: options.inboundPort || 0,
         protocolVersion: options.protocolVersion || '1.1',
-        nethash: options.nethash,
+        nethash: options.nethash == null ? DEFAULT_NETHASH : options.nethash,
         version: options.clientVersion || '2.0.0'
       }),
       autoConnect: false
@@ -44,7 +45,6 @@ class SCAdapter {
 
   async invokeProcedure(action, data) {
     let result = await this.socket.invoke(RPC_REQUEST_PROCEDURE, {
-      type: '/RPCRequest',
       procedure: `${this.chainModuleName}:${action}`,
       data
     });
