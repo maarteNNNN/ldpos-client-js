@@ -7,7 +7,8 @@ const blockchainNodePort = process.argv[3] || 7001;
   // Address: ldposfacd5ebf967ebd87436bd5932a58168b9a1151e3
   let client = createClient({
     hostname: blockchainNodeIp,
-    port: blockchainNodePort
+    port: blockchainNodePort,
+    networkSymbol: 'ldpos'
   });
 
   await client.connect({
