@@ -15,6 +15,11 @@ const blockchainNodePort = process.argv[3] || 7001;
     passphrase: 'clerk aware give dog reopen peasant duty cheese tobacco trouble gold angle'
   });
 
+  // let updateResult = await client.syncAllKeyIndexes();
+  // let updateResult = await client.syncKeyIndex('forging');
+  // console.log('UPDATED KEYS:', updateResult);
+  // console.log('FORGING KEY INDEX AFTER SYNC', client.forgingKeyIndex);
+
   // Recipient address: imitate forum impose muffin purity harvest area mixed renew orient wife eyebrow
   // for (let i = 0; i < 1; i++) {
   //   let preparedTxn = client.prepareTransaction({

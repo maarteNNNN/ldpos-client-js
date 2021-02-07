@@ -59,12 +59,32 @@ class LDPoSClient {
   async connect(options) {
     options = options || {};
 
-    if (options.passphrase) {
-      this.passphrase = options.passphrase;
-      this.seed = this.computeSeedFromPassphrase(this.passphrase);
-    } else {
-      throw new Error('Cannot connect client without a passphrase');
+    if (this.adapter.connect) {
+      await this.adapter.connect();
     }
+
+    if (this.verifyNetwork) {
+      this.verifyAdapterSupportsMethod('getNetworkSymbol');
+      let targetNetworkSymbol = await this.adapter.getNetworkSymbol();
+      if (targetNetworkSymbol !== this.networkSymbol) {
+        `The network symbol of the target node was different from that of the client; it was ${
+          targetNetworkSymbol
+        } but the client expected ${
+          this.networkSymbol
+        }`
+      }
+    }
+
+    if (!options.passphrase) {
+      return;
+    }
+
+    this.passphrase = options.passphrase;
+    this.seed = this.computeSeedFromPassphrase(this.passphrase);
+
+    this.sigPassphrase = this.passphrase;
+    this.sigSeed = this.seed;
+
     if (options.multisigPassphrase) {
       this.multisigPassphrase = options.multisigPassphrase;
       this.multisigSeed = this.computeSeedFromPassphrase(this.multisigPassphrase);
@@ -80,26 +100,10 @@ class LDPoSClient {
       this.forgingSeed = this.seed;
     }
 
-    if (this.adapter.connect) {
-      await this.adapter.connect();
-    }
-
     if (options.walletAddress == null) {
-      this.walletAddress = this.computeWalletAddressFromSeed(this.seed);
+      this.walletAddress = this.computeWalletAddressFromSeed(this.sigSeed);
     } else {
       this.walletAddress = options.walletAddress;
-    }
-
-    if (this.verifyNetwork) {
-      this.verifyAdapterSupportsMethod('getNetworkSymbol');
-      let targetNetworkSymbol = await this.adapter.getNetworkSymbol();
-      if (targetNetworkSymbol !== this.networkSymbol) {
-        `The network symbol of the target node was different from that of the client; it was ${
-          targetNetworkSymbol
-        } but the client expected ${
-          this.networkSymbol
-        }`
-      }
     }
 
     if (options.forgingKeyIndex == null) {
@@ -127,6 +131,102 @@ class LDPoSClient {
     if (this.adapter.disconnect) {
       this.adapter.disconnect();
     }
+  }
+
+  async syncAllKeyIndexes() {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to sync key indexes'
+      );
+    }
+    let accountPromise = this.getAccount(this.walletAddress);
+    try {
+      let [ sig, multisig, forging ] = await Promise.all([
+        this.syncKeyIndex('sig', accountPromise),
+        this.syncKeyIndex('multisig', accountPromise),
+        this.syncKeyIndex('forging', accountPromise)
+      ]);
+      return {
+        sig,
+        multisig,
+        forging
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  capitalizeString(str) {
+    return `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
+  }
+
+  async syncKeyIndex(type, sourceAccount) {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to sync a key index'
+      );
+    }
+    if (type !== 'forging' && type !== 'multisig' && type !== 'sig') {
+      throw new Error(`The ${type} key index type was invalid`);
+    }
+    let keyIndexName = `${type}KeyIndex`;
+    let [ account, storedkeyIndex ] = await Promise.all([
+      (async () => {
+        try {
+          return sourceAccount ? await sourceAccount : await this.getAccount(this.walletAddress);
+        } catch (error) {
+          if (error.name !== 'AccountDidNotExistError') {
+            throw error;
+          }
+        }
+        return null;
+      })(),
+      this.loadKeyIndex(keyIndexName)
+    ]);
+    if (!account) {
+      return false;
+    }
+    let accountNextKeyIndexName = `next${this.capitalizeString(keyIndexName)}`;
+    let accountNextKeyIndex = account[accountNextKeyIndexName];
+    if (!Number.isInteger(accountNextKeyIndex) || accountNextKeyIndex < 1) {
+      return false;
+    }
+    let accountKeyIndex = accountNextKeyIndex - 1;
+    let publicKeyName = `${type}PublicKey`;
+    let accountPublicKey = account[publicKeyName];
+    let accountNextPublicKey = account[`next${this.capitalizeString(publicKeyName)}`];
+
+    if (!this.verifyKeyIndex(type, accountKeyIndex, accountPublicKey, accountNextPublicKey)) {
+      throw new Error(
+        `The target node sent back a key index which does not correspond to the ${
+          type
+        } public key of the account`
+      );
+    }
+
+    let isNew = accountNextKeyIndex > storedkeyIndex;
+    if (isNew) {
+      await this.saveKeyIndex(keyIndexName, accountNextKeyIndex);
+      this[keyIndexName] = accountNextKeyIndex;
+    }
+    return isNew;
+  }
+
+  verifyKeyIndex(type, keyIndex, publicKey, nextPublicKey) {
+    if (!this.walletAddress) {
+      throw new Error(
+        'Client must be connected with a passphrase in order to verify a key index'
+      );
+    }
+    if (type !== 'forging' && type !== 'multisig' && type !== 'sig') {
+      throw new Error(`The specified type was invalid`);
+    }
+    let seed = this[`${type}Seed`];
+    let treeIndex = this.computeTreeIndex(keyIndex);
+    let targetTree = this.computeTreeFromSeed(seed, type, treeIndex);
+    let targetNextTree = this.computeTreeFromSeed(seed, type, treeIndex + 1);
+
+    return publicKey === targetTree.publicRootHash && nextPublicKey === targetNextTree.publicRootHash;
   }
 
   async loadKeyIndex(type) {
@@ -184,7 +284,7 @@ class LDPoSClient {
   getWalletAddress() {
     if (!this.walletAddress) {
       throw new Error(
-        'Client must be connected in order to get the wallet address'
+        'Client must be connected with a passphrase in order to get the wallet address'
       );
     }
     return this.walletAddress;
@@ -192,7 +292,7 @@ class LDPoSClient {
 
   async prepareTransaction(transaction) {
     if (!this.sigTree) {
-      throw new Error('Client must be connected in order to prepare a transaction');
+      throw new Error('Client must be connected with a passphrase in order to prepare a transaction');
     }
     let extendedTransaction = {
       ...transaction,
@@ -231,7 +331,7 @@ class LDPoSClient {
 
   prepareRegisterSigDetails(options) {
     options = options || {};
-    let sigPassphrase = options.passphrase || this.passphrase;
+    let sigPassphrase = options.passphrase || this.sigPassphrase;
     let newNextSigKeyIndex = options.newNextSigKeyIndex || 0;
     let treeIndex = this.computeTreeIndex(newNextSigKeyIndex);
     let seed = this.computeSeedFromPassphrase(sigPassphrase);
@@ -342,7 +442,7 @@ class LDPoSClient {
   prepareMultisigTransaction(transaction) {
     if (!this.walletAddress && !transaction.senderAddress) {
       throw new Error(
-        'Client must be connected in order to prepare a multisig transaction without specifying a senderAddress'
+        'Client must be connected with a passphrase in order to prepare a multisig transaction without specifying a senderAddress'
       );
     }
     let extendedTransaction = {
@@ -358,7 +458,7 @@ class LDPoSClient {
 
   async signMultisigTransaction(preparedTransaction) {
     if (!this.multisigTree) {
-      throw new Error('Client must be connected in order to sign a multisig transaction');
+      throw new Error('Client must be connected with a passphrase in order to sign a multisig transaction');
     }
     let { senderSignature, signatures, ...transactionWithoutSignatures } = preparedTransaction;
 
@@ -408,7 +508,7 @@ class LDPoSClient {
   async incrementForgingKey() {
     if (!this.walletAddress) {
       throw new Error(
-        'Client must be connected in order to increment the forging key'
+        'Client must be connected with a passphrase in order to increment the forging key'
       );
     }
     let currentTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
@@ -431,7 +531,7 @@ class LDPoSClient {
   async incrementMultisigKey() {
     if (!this.walletAddress) {
       throw new Error(
-        'Client must be connected in order to increment the multisig key'
+        'Client must be connected with a passphrase in order to increment the multisig key'
       );
     }
     let currentTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
@@ -445,16 +545,16 @@ class LDPoSClient {
   }
 
   makeSigTree(treeIndex) {
-    this.sigTree = this.computeTreeFromSeed(this.seed, 'sig', treeIndex);
+    this.sigTree = this.computeTreeFromSeed(this.sigSeed, 'sig', treeIndex);
     this.sigPublicKey = this.sigTree.publicRootHash;
-    this.nextSigTree = this.computeTreeFromSeed(this.seed, 'sig', treeIndex + 1);
+    this.nextSigTree = this.computeTreeFromSeed(this.sigSeed, 'sig', treeIndex + 1);
     this.nextSigPublicKey = this.nextSigTree.publicRootHash;
   }
 
   async incrementSigKey() {
     if (!this.walletAddress) {
       throw new Error(
-        'Client must be connected in order to increment the sig key'
+        'Client must be connected with a passphrase in order to increment the sig key'
       );
     }
     let currentTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
@@ -469,7 +569,7 @@ class LDPoSClient {
 
   async prepareBlock(block) {
     if (!this.forgingTree) {
-      throw new Error('Client must be connected in order to prepare a block');
+      throw new Error('Client must be connected with a passphrase in order to prepare a block');
     }
     let extendedBlock = {
       ...block,
@@ -496,7 +596,7 @@ class LDPoSClient {
 
   async signBlock(preparedBlock) {
     if (!this.forgingTree) {
-      throw new Error('Client must be connected in order to sign a block');
+      throw new Error('Client must be connected with a passphrase in order to sign a block');
     }
     let { forgerSignature, signatures, ...blockWithoutSignatures } = preparedBlock;
 
@@ -555,7 +655,7 @@ class LDPoSClient {
   computeTree(type, treeIndex) {
     let seed;
     if (type === 'sig') {
-      seed = this.seed;
+      seed = this.sigSeed;
     } else if (type === 'multisig') {
       seed = this.multisigSeed;
     } else if (type === 'forging') {

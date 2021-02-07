@@ -43,10 +43,15 @@ class SCAdapter {
   }
 
   async invokeProcedure(action, data) {
-    let result = await this.socket.invoke(RPC_REQUEST_PROCEDURE, {
-      procedure: `${this.chainModuleName}:${action}`,
-      data
-    });
+    let result;
+    try {
+      result = await this.socket.invoke(RPC_REQUEST_PROCEDURE, {
+        procedure: `${this.chainModuleName}:${action}`,
+        data
+      });
+    } catch (error) {
+      throw new Error(error.message);
+    }
     if (!result) {
       throw new Error(
         'Peer sent back RPC result in an invalid format - Expected an object with a data property'
