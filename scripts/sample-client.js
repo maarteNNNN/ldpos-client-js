@@ -21,19 +21,19 @@ const blockchainNodePort = process.argv[3] || 7001;
   // console.log('FORGING KEY INDEX AFTER SYNC', client.forgingKeyIndex);
 
   // Recipient address: imitate forum impose muffin purity harvest area mixed renew orient wife eyebrow
-  for (let i = 0; i < 1; i++) {
-    let preparedTxn = await client.prepareTransaction({
-      type: 'transfer',
-      recipientAddress: 'ldpos75fbb06210575fd8f7f62e0b9267d4386273fc80',
-      amount: `${Math.floor(Math.random() * 1)}000000000`,
-      fee: `10000000`,
-      timestamp: 100000,
-      message: `Test ${i}`
-    });
+  // for (let i = 0; i < 1; i++) {
+  //   let preparedTxn = await client.prepareTransaction({
+  //     type: 'transfer',
+  //     recipientAddress: 'ldpos75fbb06210575fd8f7f62e0b9267d4386273fc80',
+  //     amount: `${Math.floor(Math.random() * 1)}000000000`,
+  //     fee: `10000000`,
+  //     timestamp: 100000,
+  //     message: `Test ${i}`
+  //   });
   
-    await client.postTransaction(preparedTxn);
-    console.log(`Posted transaction #${i}`);
-  }
+  //   await client.postTransaction(preparedTxn);
+  //   console.log(`Posted transaction #${i}`);
+  // }
 
   // let voteTxn = client.prepareTransaction({
   //   type: 'vote',
