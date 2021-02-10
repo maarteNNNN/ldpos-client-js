@@ -1,9 +1,9 @@
 const bip39 = require('bip39');
-const ProperMerkle = require('proper-merkle');
+const LiteMerkle = require('lite-merkle');
 const SCAdapter = require('./sc-adapter');
 const StoreClass = require('./store');
 
-const LEAF_COUNT = 32;
+const LEAF_COUNT = 64;
 const SEED_ENCODING = 'hex';
 const NODE_ENCODING = 'hex';
 const SIGNATURE_ENCODING = 'base64';
@@ -35,7 +35,7 @@ class LDPoSClient {
       }
       this.adapter = new SCAdapter(this.options);
     }
-    this.merkle = new ProperMerkle({
+    this.merkle = new LiteMerkle({
       leafCount: LEAF_COUNT,
       seedEncoding: SEED_ENCODING,
       nodeEncoding: NODE_ENCODING,
