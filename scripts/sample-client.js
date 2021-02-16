@@ -4,7 +4,7 @@ const blockchainNodePort = process.argv[3] || 7001;
 
 (async () => {
 
-  // Address: ldposfacd5ebf967ebd87436bd5932a58168b9a1151e3
+  // Address: ldpos313ac2d3d1d081901be0c5ce074d1e81a8a0bf5f
   let client = createClient({
     hostname: blockchainNodeIp,
     port: blockchainNodePort,
@@ -22,10 +22,10 @@ const blockchainNodePort = process.argv[3] || 7001;
 
   // Recipient address: imitate forum impose muffin purity harvest area mixed renew orient wife eyebrow
   // for (let i = 0; i < 1; i++) {
-  //   let preparedTxn = client.prepareTransaction({
+  //   let preparedTxn = await client.prepareTransaction({
   //     type: 'transfer',
-  //     recipientAddress: 'ldpos75fbb06210575fd8f7f62e0b9267d4386273fc80',
-  //     amount: `${Math.floor(Math.random() * 1)}000000000`,
+  //     recipientAddress: 'ldpos0284618323107f0356c72dbac36022b90fd2e96f',
+  //     amount: `1000000000`,
   //     fee: `10000000`,
   //     timestamp: 100000,
   //     message: `Test ${i}`
@@ -35,7 +35,7 @@ const blockchainNodePort = process.argv[3] || 7001;
   //   console.log(`Posted transaction #${i}`);
   // }
 
-  // let voteTxn = client.prepareTransaction({
+  // let voteTxn = await client.prepareTransaction({
   //   type: 'vote',
   //   delegateAddress: 'ldpos75fbb06210575fd8f7f62e0b9267d4386273fc80',
   //   fee: `20000000`,
@@ -71,10 +71,13 @@ const blockchainNodePort = process.argv[3] || 7001;
   // let block = await client.getBlockAtHeight(2);
   // console.log('BLOCK:', block);
 
-  let accounts = await client.getAccountsByBalance(0, 100);
-  console.log('ACCOUNTS:', accounts);
+  // let accounts = await client.getAccountsByBalance(0, 100);
+  // console.log('ACCOUNTS:', accounts);
 
   // let pendingTxnCount = await client.getPendingTransactionCount();
   // console.log('PENDING TRANSACTION COUNT:', pendingTxnCount);
+
+  let result = await client.getBlocksBetweenHeights(0, 100);
+  console.log('RESULT:', result);
 
 })();

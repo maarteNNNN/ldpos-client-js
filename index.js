@@ -9,6 +9,8 @@ const NODE_ENCODING = 'hex';
 const SIGNATURE_ENCODING = 'base64';
 const ID_ENCODING = 'hex';
 const ID_LENGTH = 40;
+const WALLET_ADDRESS_BASE_BYTE_LENGTH = 20;
+const HEX_REGEX = /^([0-9a-f])*$/;
 
 // TODO: Add methods for proving or disproving a signed transaction based on signatureHash.
 // TODO: Add method to find the first key index which corresponds to a specific public key.
@@ -248,7 +250,9 @@ class LDPoSClient {
 
   computeWalletAddressFromPublicKey(publicKey) {
     return `${this.networkSymbol}${
-      Buffer.from(publicKey, NODE_ENCODING).slice(0, 20).toString('hex')
+      Buffer.from(publicKey, NODE_ENCODING)
+        .slice(0, WALLET_ADDRESS_BASE_BYTE_LENGTH)
+        .toString('hex')
     }`;
   }
 
@@ -270,6 +274,20 @@ class LDPoSClient {
 
   validatePassphrase(passphrase) {
     return bip39.validateMnemonic(passphrase);
+  }
+
+  validateWalletAddress(walletAddress) {
+    if (typeof walletAddress !== 'string') {
+      return false;
+    }
+    if (walletAddress.indexOf(this.networkSymbol) !== 0) {
+      return false;
+    }
+    let addressBase = walletAddress.slice(this.networkSymbol.length);
+    if (addressBase.length !== WALLET_ADDRESS_BASE_BYTE_LENGTH * 2) {
+      return false;
+    }
+    return HEX_REGEX.test(addressBase);
   }
 
   computeId(object) {
