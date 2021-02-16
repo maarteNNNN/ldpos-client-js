@@ -1,6 +1,6 @@
 {
   "name": "ldpos-client",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "description": "JavaScript Client for LDPoS",
   "main": "index.js",
   "scripts": {
