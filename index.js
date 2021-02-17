@@ -61,10 +61,6 @@ class LDPoSClient {
   async connect(options) {
     options = options || {};
 
-    if (this.adapter.connect) {
-      await this.adapter.connect();
-    }
-
     if (this.verifyNetwork) {
       this.verifyAdapterSupportsMethod('getNetworkSymbol');
       let targetNetworkSymbol = await this.adapter.getNetworkSymbol();
@@ -127,6 +123,10 @@ class LDPoSClient {
     this.makeForgingTreesFromKeyIndex(this.forgingKeyIndex);
     this.makeMultisigTreesFromKeyIndex(this.multisigKeyIndex);
     this.makeSigTreesFromKeyIndex(this.sigKeyIndex);
+
+    if (this.adapter.connect) {
+      await this.adapter.connect();
+    }
   }
 
   disconnect() {
