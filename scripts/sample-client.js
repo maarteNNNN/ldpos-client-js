@@ -4,7 +4,7 @@ const blockchainNodePort = process.argv[3] || 7001;
 
 (async () => {
 
-  // Address: ldposfacd5ebf967ebd87436bd5932a58168b9a1151e3
+  // Address: ldpos313ac2d3d1d081901be0c5ce074d1e81a8a0bf5f
   let client = createClient({
     hostname: blockchainNodeIp,
     port: blockchainNodePort,
@@ -71,10 +71,13 @@ const blockchainNodePort = process.argv[3] || 7001;
   let block = await client.getBlockAtHeight(2);
   console.log('BLOCK:', block);
 
-  let accounts = await client.getAccountsByBalance(0, 100);
-  console.log('ACCOUNTS:', accounts);
+  // let accounts = await client.getAccountsByBalance(0, 100);
+  // console.log('ACCOUNTS:', accounts);
 
   // let pendingTxnCount = await client.getPendingTransactionCount();
   // console.log('PENDING TRANSACTION COUNT:', pendingTxnCount);
+
+  let result = await client.getBlocksBetweenHeights(0, 100);
+  console.log('RESULT:', result);
 
 })();

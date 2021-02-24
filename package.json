@@ -1,6 +1,6 @@
 {
   "name": "ldpos-client",
-  "version": "4.2.0",
+  "version": "5.1.1",
   "description": "JavaScript Client for LDPoS",
   "main": "index.js",
   "scripts": {
@@ -23,7 +23,7 @@
   "homepage": "https://github.com/Leasehold/ldpos-client-js#readme",
   "dependencies": {
     "bip39": "^3.0.3",
-    "proper-merkle": "^3.1.1",
+    "lite-merkle": "^1.0.1",
     "socketcluster-client": "^16.0.1"
   },
   "browser": {

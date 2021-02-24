@@ -1,14 +1,16 @@
 const bip39 = require('bip39');
-const ProperMerkle = require('proper-merkle');
+const LiteMerkle = require('lite-merkle');
 const SCAdapter = require('./sc-adapter');
 const StoreClass = require('./store');
 
-const LEAF_COUNT = 32;
+const LEAF_COUNT = 64;
 const SEED_ENCODING = 'hex';
 const NODE_ENCODING = 'hex';
 const SIGNATURE_ENCODING = 'base64';
 const ID_ENCODING = 'hex';
 const ID_LENGTH = 40;
+const WALLET_ADDRESS_BASE_BYTE_LENGTH = 20;
+const HEX_REGEX = /^([0-9a-f])*$/;
 
 // TODO: Add methods for proving or disproving a signed transaction based on signatureHash.
 // TODO: Add method to find the first key index which corresponds to a specific public key.
@@ -35,7 +37,7 @@ class LDPoSClient {
       }
       this.adapter = new SCAdapter(this.options);
     }
-    this.merkle = new ProperMerkle({
+    this.merkle = new LiteMerkle({
       leafCount: LEAF_COUNT,
       seedEncoding: SEED_ENCODING,
       nodeEncoding: NODE_ENCODING,
@@ -122,9 +124,9 @@ class LDPoSClient {
       this.sigKeyIndex = options.sigKeyIndex;
     }
 
-    this.makeForgingTree(this.computeTreeIndex(this.forgingKeyIndex));
-    this.makeMultisigTree(this.computeTreeIndex(this.multisigKeyIndex));
-    this.makeSigTree(this.computeTreeIndex(this.sigKeyIndex));
+    this.makeForgingTreesFromKeyIndex(this.forgingKeyIndex);
+    this.makeMultisigTreesFromKeyIndex(this.multisigKeyIndex);
+    this.makeSigTreesFromKeyIndex(this.sigKeyIndex);
   }
 
   disconnect() {
@@ -207,7 +209,16 @@ class LDPoSClient {
     let isNew = accountNextKeyIndex > storedkeyIndex;
     if (isNew) {
       await this.saveKeyIndex(keyIndexName, accountNextKeyIndex);
-      this[keyIndexName] = accountNextKeyIndex;
+      if (type === 'forging') {
+        this.forgingKeyIndex = accountNextKeyIndex;
+        this.makeForgingTreesFromKeyIndex(accountNextKeyIndex);
+      } else if (type === 'multisig') {
+        this.multisigKeyIndex = accountNextKeyIndex;
+        this.makeMultisigTreesFromKeyIndex(accountNextKeyIndex);
+      } else {
+        this.sigKeyIndex = accountNextKeyIndex;
+        this.makeSigTreesFromKeyIndex(accountNextKeyIndex);
+      }
     }
     return isNew;
   }
@@ -248,7 +259,9 @@ class LDPoSClient {
 
   computeWalletAddressFromPublicKey(publicKey) {
     return `${this.networkSymbol}${
-      Buffer.from(publicKey, NODE_ENCODING).slice(0, 20).toString('hex')
+      Buffer.from(publicKey, NODE_ENCODING)
+        .slice(0, WALLET_ADDRESS_BASE_BYTE_LENGTH)
+        .toString('hex')
     }`;
   }
 
@@ -270,6 +283,20 @@ class LDPoSClient {
 
   validatePassphrase(passphrase) {
     return bip39.validateMnemonic(passphrase);
+  }
+
+  validateWalletAddress(walletAddress) {
+    if (typeof walletAddress !== 'string') {
+      return false;
+    }
+    if (walletAddress.indexOf(this.networkSymbol) !== 0) {
+      return false;
+    }
+    let addressBase = walletAddress.slice(this.networkSymbol.length);
+    if (addressBase.length !== WALLET_ADDRESS_BASE_BYTE_LENGTH * 2) {
+      return false;
+    }
+    return HEX_REGEX.test(addressBase);
   }
 
   computeId(object) {
@@ -498,11 +525,15 @@ class LDPoSClient {
     return `${this.networkSymbol}-${type}-${treeIndex}`;
   }
 
-  makeForgingTree(treeIndex) {
+  makeForgingTrees(treeIndex) {
     this.forgingTree = this.computeTreeFromSeed(this.forgingSeed, 'forging', treeIndex);
     this.forgingPublicKey = this.forgingTree.publicRootHash;
     this.nextForgingTree = this.computeTreeFromSeed(this.forgingSeed, 'forging', treeIndex + 1);
     this.nextForgingPublicKey = this.nextForgingTree.publicRootHash;
+  }
+
+  makeForgingTreesFromKeyIndex(keyIndex) {
+    this.makeForgingTrees(this.computeTreeIndex(keyIndex));
   }
 
   async incrementForgingKey() {
@@ -517,15 +548,19 @@ class LDPoSClient {
     let newTreeIndex = this.computeTreeIndex(this.forgingKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
-      this.makeForgingTree(newTreeIndex);
+      this.makeForgingTrees(newTreeIndex);
     }
   }
 
-  makeMultisigTree(treeIndex) {
+  makeMultisigTrees(treeIndex) {
     this.multisigTree = this.computeTreeFromSeed(this.multisigSeed, 'multisig', treeIndex);
     this.multisigPublicKey = this.multisigTree.publicRootHash;
     this.nextMultisigTree = this.computeTreeFromSeed(this.multisigSeed, 'multisig', treeIndex + 1);
     this.nextMultisigPublicKey = this.nextMultisigTree.publicRootHash;
+  }
+
+  makeMultisigTreesFromKeyIndex(keyIndex) {
+    this.makeMultisigTrees(this.computeTreeIndex(keyIndex));
   }
 
   async incrementMultisigKey() {
@@ -540,15 +575,19 @@ class LDPoSClient {
     let newTreeIndex = this.computeTreeIndex(this.multisigKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
-      this.makeMultisigTree(newTreeIndex);
+      this.makeMultisigTrees(newTreeIndex);
     }
   }
 
-  makeSigTree(treeIndex) {
+  makeSigTrees(treeIndex) {
     this.sigTree = this.computeTreeFromSeed(this.sigSeed, 'sig', treeIndex);
     this.sigPublicKey = this.sigTree.publicRootHash;
     this.nextSigTree = this.computeTreeFromSeed(this.sigSeed, 'sig', treeIndex + 1);
     this.nextSigPublicKey = this.nextSigTree.publicRootHash;
+  }
+
+  makeSigTreesFromKeyIndex(keyIndex) {
+    this.makeSigTrees(this.computeTreeIndex(keyIndex));
   }
 
   async incrementSigKey() {
@@ -563,7 +602,7 @@ class LDPoSClient {
     let newTreeIndex = this.computeTreeIndex(this.sigKeyIndex);
 
     if (newTreeIndex !== currentTreeIndex) {
-      this.makeSigTree(newTreeIndex);
+      this.makeSigTrees(newTreeIndex);
     }
   }
 
